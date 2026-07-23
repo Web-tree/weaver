@@ -1,8 +1,10 @@
 # Design: `beads` repo-weaver module (beads-first, extract-later)
 
-**Date:** 2026-07-21
+**Date:** 2026-07-21 (updated 2026-07-23)
 **Status:** approved, pre-implementation
 **Source handoff:** `docs/beads-module-handoff.md`
+**Related:** `2026-07-23-weaver-marketplace-design.md` — beads ships "marketplace-shaped"
+(its repo carries a self-describing manifest and is indexed by the central catalog).
 
 ## Goal
 
@@ -89,10 +91,15 @@ and costs coupling. It's out.
 ### 1. The module — lives in `Web-tree/beads-module` (repo root, per C1)
 
 ```
-weaver.module.yaml     # 1 input (vault_ref), 2 tasks (init, allow)
-templates/.envrc.j2    # the whole password mechanism → renders to .envrc
-README.md              # onboarding steps + board-model note
+weaver.module.yaml       # 1 input (vault_ref), 2 tasks (init, allow)
+templates/.envrc.j2      # the whole password mechanism → renders to .envrc
+.wt/weaver/manifest.yaml # self-describing marketplace manifest (see marketplace spec §A)
+README.md                # onboarding steps + board-model note
 ```
+
+The `.wt/weaver/manifest.yaml` is discovery metadata only (name, kind, root,
+description) — it does **not** re-declare inputs/tasks (those stay authoritative
+in `weaver.module.yaml`). It makes the repo self-describing and marketplace-ready.
 
 - **Input:** `vault_ref` (string, default `op://WebTreeShared/dolt-beads/password`).
 - **Tasks:** `init` = `bd init --server-host dolt.stoat-pain.ts.net --server-port
@@ -187,6 +194,9 @@ primary deliverable — it seeds the general module-development workflow.
 | G3 | Modules can't ship `checks:` | `ModuleManifest` has no field (C5); every consumer hand-copies the same checks — see the dogfood `weaver.yaml` |
 | G4 | No subpath sourcing | `path:` ignored (C1); example 28's `paths:` unimplemented — blocks a modules monorepo and in-repo module hosting |
 | G5 | No render assertion without a committed golden file | `.env*` gitignore means the beads test can't lean on a golden `.envrc`; a `render → assert-content` helper (or engine `--render-only`) would help module authors generally |
+| G6 | No marketplace resolution engine | `marketplace:` config + `use: name@ref` expansion; catalog backs `get_registry_url()`'s TODO; `provides_ensure` replaces the fantasy plugin default. See marketplace spec |
+| G7 | `rw module new` should scaffold the self-manifest | emit `.wt/weaver/manifest.yaml` alongside the module skeleton (ties to G1) |
+| G8 | No `rw marketplace` verbs | list/search/validate; validate that catalog `source`/`ref` resolve and match the target repo's self-manifest |
 
 ## Resolved design-time flag
 
