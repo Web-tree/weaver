@@ -99,10 +99,8 @@ fn yaml_to_json(value: &serde_yml::Value) -> Result<serde_json::Value, String> {
                 J::Number(i.into())
             } else if let Some(u) = n.as_u64() {
                 J::Number(u.into())
-            } else if let Some(f) = n.as_f64() {
-                serde_json::Number::from_f64(f).map(J::Number).unwrap_or(J::Null)
             } else {
-                return Err("unsupported number value".to_string());
+                serde_json::Number::from_f64(n.as_f64()).map(J::Number).unwrap_or(J::Null)
             }
         }
         Y::String(s) => J::String(s.clone()),
@@ -116,17 +114,11 @@ fn yaml_to_json(value: &serde_yml::Value) -> Result<serde_json::Value, String> {
         Y::Mapping(map) => {
             let mut out = serde_json::Map::with_capacity(map.len());
             for (k, v) in map {
-                let key = match k {
-                    Y::String(s) => s.clone(),
-                    Y::Bool(b) => b.to_string(),
-                    Y::Number(n) => n.to_string(),
-                    other => return Err(format!("unsupported map key: {other:?}")),
-                };
-                out.insert(key, yaml_to_json(v)?);
+                out.insert(k.clone(), yaml_to_json(v)?);
             }
             J::Object(out)
         }
-        Y::Tagged(tagged) => yaml_to_json(&tagged.value)?,
+        Y::Tagged(tagged) => yaml_to_json(tagged.value())?,
     })
 }
 
@@ -188,10 +180,7 @@ mod tests {
     #[test]
     fn build_context_mapping_accesses_fields() {
         let mut map = serde_yml::Mapping::new();
-        map.insert(
-            serde_yml::Value::String("host".into()),
-            serde_yml::Value::String("localhost".into()),
-        );
+        map.insert("host", serde_yml::Value::String("localhost".into()));
         let mut inputs = HashMap::new();
         inputs.insert("db".into(), serde_yml::Value::Mapping(map));
 
