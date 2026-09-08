@@ -14,6 +14,6 @@ path = "../../wit"
 crate-type = ["cdylib"]
 
 [dependencies]
-wit-bindgen = "0.50.0"
+wit-bindgen = "0.61.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
