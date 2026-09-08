@@ -1,7 +1,7 @@
 use clap::Args;
 use comfy_table::Table;
 use console::style;
-use repo_weaver_core::config::{CheckDef, WeaverConfig};
+use weaver_core::config::{CheckDef, WeaverConfig};
 use std::path::Path;
 use std::process::Command;
 

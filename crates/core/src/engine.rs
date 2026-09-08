@@ -1,5 +1,5 @@
 use crate::template::TemplateEngine;
-use repo_weaver_ops::fs::ensure_dir;
+use weaver_ops::fs::ensure_dir;
 use std::path::Path;
 
 pub struct Engine;
@@ -24,7 +24,7 @@ impl Engine {
     }
 
     pub fn ensure_file_copy(src: &Path, dest: &Path) -> anyhow::Result<()> {
-        repo_weaver_ops::fs::copy_file(src, dest)
+        weaver_ops::fs::copy_file(src, dest)
     }
 
     pub fn ensure_task_wrapper(path: &Path, command: &str) -> anyhow::Result<()> {

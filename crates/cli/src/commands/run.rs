@@ -1,6 +1,6 @@
 use clap::Args;
-use repo_weaver_core::config::{ModuleManifest, WeaverConfig};
-use repo_weaver_core::module::ModuleResolver;
+use weaver_core::config::{ModuleManifest, WeaverConfig};
+use weaver_core::module::ModuleResolver;
 use std::path::Path;
 use std::process::Command;
 use tracing::info;

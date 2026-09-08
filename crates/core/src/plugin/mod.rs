@@ -109,7 +109,7 @@ impl PluginError {
                 Some("Check that the plugin path exists and is accessible")
             }
             PluginError::ChecksumMismatch { .. } => {
-                Some("Run 'rw plugins update' to update the lockfile")
+                Some("Run 'wvr plugins update' to update the lockfile")
             }
             PluginError::CacheNotWritable { .. } => {
                 Some("Check permissions on the cache directory (~/.rw/plugins/)")
@@ -124,7 +124,7 @@ impl PluginError {
                 Some("Check build logs and ensure the plugin source is valid")
             }
             PluginError::PluginNotCached { .. } => {
-                Some("Connect to the internet and run 'rw apply' to download the plugin")
+                Some("Connect to the internet and run 'wvr apply' to download the plugin")
             }
             PluginError::Other(_) => None,
         }

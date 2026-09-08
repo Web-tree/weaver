@@ -10,7 +10,7 @@ fn test_update_no_drift() {
     ctx.setup_module("my-mod", "v1", "file v1 content");
     ctx.write_file("weaver.yaml", &weaver_config("my-mod", "v1", &ctx.root));
 
-    Command::cargo_bin("rw")
+    Command::cargo_bin("wvr")
         .unwrap()
         .current_dir(&ctx.root)
         .env("HOME", ctx.root.as_os_str())
@@ -26,7 +26,7 @@ fn test_update_no_drift() {
     ctx.write_file("weaver.yaml", &weaver_config("my-mod", "v2", &ctx.root));
 
     // 3. Apply Update
-    Command::cargo_bin("rw")
+    Command::cargo_bin("wvr")
         .unwrap()
         .current_dir(&ctx.root)
         .env("HOME", ctx.root.as_os_str())
@@ -45,7 +45,7 @@ fn test_drift_detected_stop() {
     ctx.setup_module("my-mod", "v1", "file v1 content");
     ctx.write_file("weaver.yaml", &weaver_config("my-mod", "v1", &ctx.root));
 
-    Command::cargo_bin("rw")
+    Command::cargo_bin("wvr")
         .unwrap()
         .current_dir(&ctx.root)
         .env("HOME", ctx.root.as_os_str())
@@ -58,7 +58,7 @@ fn test_drift_detected_stop() {
 
     // 3. Apply Update (Default strategy: stop)
     // Note: Even without config change, apply should detect drift on managed file
-    Command::cargo_bin("rw")
+    Command::cargo_bin("wvr")
         .unwrap()
         .current_dir(&ctx.root)
         .env("HOME", ctx.root.as_os_str())
@@ -79,7 +79,7 @@ fn test_drift_overwrite() {
     ctx.setup_module("my-mod", "v1", "file v1 content");
     ctx.write_file("weaver.yaml", &weaver_config("my-mod", "v1", &ctx.root));
 
-    Command::cargo_bin("rw")
+    Command::cargo_bin("wvr")
         .unwrap()
         .current_dir(&ctx.root)
         .env("HOME", ctx.root.as_os_str())
@@ -91,7 +91,7 @@ fn test_drift_overwrite() {
     ctx.write_file("app/file.txt", "user modified content");
 
     // 3. Apply Update with overwrite strategy
-    Command::cargo_bin("rw")
+    Command::cargo_bin("wvr")
         .unwrap()
         .current_dir(&ctx.root)
         .env("HOME", ctx.root.as_os_str())

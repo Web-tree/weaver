@@ -1,4 +1,4 @@
-use repo_weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
+use weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
 use std::path::Path;
 
 /// Proves a generic (non-built-in) ecosystem plugin loads and runs `plan`

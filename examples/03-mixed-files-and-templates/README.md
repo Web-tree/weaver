@@ -18,7 +18,7 @@ Demonstrates a module that contains both static files and templates processed to
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

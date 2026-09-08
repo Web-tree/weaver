@@ -90,9 +90,9 @@ apps:
 
     fs::write(root.join("weaver.yaml"), weaver_yaml)?;
 
-    // 2. Execution (rw apply)
+    // 2. Execution (wvr apply)
     // We expect this to execute successfully and create files
-    let mut cmd = Command::cargo_bin("rw")?;
+    let mut cmd = Command::cargo_bin("wvr")?;
     cmd.current_dir(root)
         .arg("apply")
         .arg("--auto-approve")

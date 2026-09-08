@@ -1,11 +1,11 @@
-# 20 - Kubernetes Ingress Annotation Policy (`rw check`)
+# 20 - Kubernetes Ingress Annotation Policy (`wvr check`)
 
 Demonstrates policy validation for ingress manifests: every ingress must include
 required controller and ownership annotations.
 
 ## What this covers
 
-- `rw check [app]` command behavior (PRD §8)
+- `wvr check [app]` command behavior (PRD §8)
 - Realistic policy guardrail for Kubernetes ingress standards
 - Non-mutating validation workflow for pre-merge checks
 
@@ -20,12 +20,12 @@ All ingress resources must declare:
 
 ```sh
 cd before
-rw check gateway
+wvr check gateway
 ```
 
 ## Expected result
 
-`rw check gateway` should fail in `before/` because required annotations are
+`wvr check gateway` should fail in `before/` because required annotations are
 missing.
 
 `after/` shows the expected compliant state once the ingress is corrected.

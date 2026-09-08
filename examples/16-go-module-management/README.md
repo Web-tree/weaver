@@ -18,7 +18,7 @@ Demonstrates Go dependency convergence using native `go` tooling.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

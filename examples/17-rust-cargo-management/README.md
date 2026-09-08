@@ -18,7 +18,7 @@ Demonstrates Rust workspace convergence with Cargo-native operations.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

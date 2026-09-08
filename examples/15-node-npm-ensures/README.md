@@ -19,7 +19,7 @@ Demonstrates Node.js package management via native npm commands.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

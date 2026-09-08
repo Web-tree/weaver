@@ -1,23 +1,23 @@
-# Repo Weaver (rw) project description and requirements
+# Weaver project description and requirements
 
 ## 1. Purpose
 
-Repo Weaver is a declarative tool for creating and maintaining repositories and monorepos in a consistent way across many stacks (TypeScript, Go, Rust, Terraform/OpenTofu, Kubernetes YAML, GitHub Actions, Taskfile, and others).
+Weaver is a declarative tool for configuring and maintaining directories and workspaces in a consistent way across many stacks (TypeScript, Go, Rust, Terraform/OpenTofu, Kubernetes YAML, GitHub Actions, Taskfile, and others). Repositories and monorepos are important workspace targets, alongside home directories and other managed directories.
 
 It solves two problems:
 
 1. Bootstrap: generate a working project or workspace quickly with prompts for required parameters.
-2. Update: re-run later when upstream modules change (new variables, new tasks, new conventions) and converge the repo to the desired state again.
+2. Update: re-run later when upstream modules change (new variables, new tasks, new conventions) and converge the target directory to the desired state again.
 
-Repo Weaver must be able to run repeatedly and be idempotent.
+Weaver must be able to run repeatedly and be idempotent.
 
 ## 2. Key principles
 
 1. Declarative desired state
-   The YAML describes the state the repo should have. Running rw converges actual state to desired state.
+   The YAML describes the state the target directory should have. Running Weaver converges actual state to desired state.
 
 2. Native tool first
-   Repo Weaver must not implement custom parsers for external ecosystems when a native tool can be used instead.
+   Weaver must not implement custom parsers for external ecosystems when a native tool can be used instead.
    Examples:
 
 * Taskfile: use `task -l` to inspect tasks
@@ -27,7 +27,7 @@ Repo Weaver must be able to run repeatedly and be idempotent.
 * Terraform/OpenTofu: use `terraform/tofu` commands including `output -json`
 * Kubernetes: use `kubectl -o json`, `kustomize`, `helm`
 
-Repo Weaver may parse only:
+Weaver may parse only:
 
 * its own YAML configs
 * JSON outputs produced by tools
@@ -42,9 +42,9 @@ Repo Weaver may parse only:
 5. Deterministic by default, AI as a controlled option
    Most changes should be done via deterministic actions. AI-based changes are supported for complex edits, but must be controlled, verifiable, and rollback-safe.
 
-## 3. Scope of what rw manages
+## 3. Scope of what Weaver manages
 
-rw manages:
+Weaver manages:
 
 * repository and monorepo scaffolding
 * folder structure conventions
@@ -54,7 +54,7 @@ rw manages:
 * pipeline tasks that orchestrate native tools in steps and pass outputs between steps
 * optional AI patch steps (unified diff, apply, verify, rollback)
 
-rw does not need to:
+Weaver does not need to:
 
 * become a full CI system
 * replace Terraform/ArgoCD/Helm/etc
@@ -67,7 +67,7 @@ rw does not need to:
 
 A workspace is a directory containing one root config file and optionally additional config fragments.
 
-* Root file: `weaver.yaml` (or `repo-weaver.yaml`, pick one and standardize)
+* Root file: `weaver.yaml`
 * Optional directory: `weaver.d/` with multiple YAML fragments
 * Optional app-local config files inside app folders
 
@@ -147,9 +147,9 @@ Requirements:
 
 * Uses an external AI CLI tool (claude code, gemini cli, codex cli, or custom command)
 * The AI must output only a unified diff
-* rw applies diff using git tooling (git apply) or patch
-* rw runs verify checks
-* if verify fails, rw rolls back changes
+* wvr applies diff using git tooling (git apply) or patch
+* wvr runs verify checks
+* if verify fails, wvr rolls back changes
 
 AI steps are optional and should be used only when deterministic ensures are insufficient.
 
@@ -183,7 +183,7 @@ Example conceptual structure:
 
 ### 5.2 Tree-like configs and recursion
 
-rw must support:
+wvr must support:
 
 * loading multiple YAML files via includes
 * app configs that can live in subfolders and be discovered recursively (optional mode)
@@ -193,7 +193,7 @@ rw must support:
 
 ### 5.3 Variables and prompting
 
-rw must support variables from:
+wvr must support variables from:
 
 * YAML literal values
 * environment variables
@@ -205,13 +205,13 @@ Example: `.rw/answers.yaml` per app or per workspace.
 
 When module updates introduce new required vars:
 
-* rw prompts for them on next run
+  * wvr prompts for them on next run
   When vars are removed:
-* rw warns and offers to keep or delete stored answers
+  * wvr warns and offers to keep or delete stored answers
 
 ### 5.4 Templates
 
-rw must support file rendering from templates with:
+wvr must support file rendering from templates with:
 
 * access to vars
 * access to module metadata
@@ -222,7 +222,7 @@ The templating engine can be a standard one (for example Jinja-like behavior). I
 
 ## 6. Ensures library (minimum required)
 
-rw must ship with a core set of ensures. Initial set:
+weaver must ship with a core set of ensures. Initial set:
 
 Repository structure and vendoring:
 
@@ -334,31 +334,31 @@ Minimum:
 * run from step id
 * dry run (print commands)
 
-## 8. CLI requirements (rw)
+## 8. CLI requirements (`wvr`)
 
-rw must provide:
+Weaver must provide:
 
 Config and discovery:
 
-* `rw list` shows apps and tasks
-* `rw describe <app>` shows resolved config (after includes and extends)
+* `wvr list` shows apps and tasks
+* `wvr describe <app>` shows resolved config (after includes and extends)
 
 Convergence:
 
-* `rw plan [app]` plans ensures
-* `rw apply [app]` applies ensures
-* `rw check [app]` runs checks
+* `wvr plan [app]` plans ensures
+* `wvr apply [app]` applies ensures
+* `wvr check [app]` runs checks
 
 Tasks:
 
-* `rw task list [app]`
-* `rw run <app> <taskName>` executes pipeline task
-* optional: `rw run <app> <taskName> --from <stepId>`
+* `wvr task list [app]`
+* `wvr run <app> <taskName>` executes pipeline task
+* optional: `wvr run <app> <taskName> --from <stepId>`
 
 Modules:
 
-* `rw module list`
-* `rw module update <name> --ref <newRef>` updates pinned ref in config (or in a lock file) and optionally runs apply
+* `wvr module list`
+* `wvr module update <name> --ref <newRef>` updates pinned ref in config (or in a lock file) and optionally runs apply
 
 Prompting:
 
@@ -381,7 +381,7 @@ Exit codes:
 
 2. Local customization safety
 
-* rw should clearly define which files it owns (managed files)
+* wvr should clearly define which files it owns (managed files)
 * managed files can be overwritten on apply
 * unmanaged files must not be changed unless explicitly targeted
 
@@ -400,14 +400,14 @@ Exit codes:
 
 5. AI patch safety
 
-* require git repo or require rw to initialize a git repo for safe rollback
+* require git repo or require wvr to initialize a git repo for safe rollback
 * verify must run after patch
 * rollback on failure is mandatory
 * store the AI prompt and tool used in logs for auditability
 
 ## 10. Requirements specific to k3s-nebula usage
 
-Repo Weaver must support a pattern where:
+Weaver must support a pattern where:
 
 * upstream `k3s-nebula` is vendored (submodule or pinned clone)
 * a workspace wrapper is generated that contains:
@@ -423,7 +423,7 @@ Repo Weaver must support a pattern where:
 
 It must be possible to update `k3s-nebula` and then re-run:
 
-* rw prompts for new tf vars if needed
+* wvr prompts for new tf vars if needed
 * regenerated wrapper tasks reflect new upstream tasks or renamed conventions
 
 ## 11. Non-goals (explicit)
@@ -457,10 +457,10 @@ MVP must include:
   * env templating
 * CLI commands:
 
-  * rw list
-  * rw plan
-  * rw apply
-  * rw run
+  * wvr list
+  * wvr plan
+  * wvr apply
+  * wvr run
 
 First real-world target:
 
@@ -475,16 +475,16 @@ First real-world target:
 
 ## 14. Acceptance criteria
 
-Repo Weaver is acceptable when:
+Weaver is acceptable when:
 
-1. You can run `rw apply` in an empty folder and get a fully working k3s-nebula workspace wrapper with generated tfvars and wrapper Taskfile.
-2. You can update the pinned k3s-nebula ref, run `rw apply` again, and rw:
+1. You can run `wvr apply` in an empty folder and get a fully working k3s-nebula workspace wrapper with generated tfvars and wrapper Taskfile.
+2. You can update the pinned k3s-nebula ref, run `wvr apply` again, and Weaver:
 
 * detects differences
 * prompts for new required vars
 * updates managed files safely
 
-3. You can run `rw run <app> install` and it:
+3. You can run `wvr run <app> install` and it:
 
 * applies infra
 * captures outputs from terraform output -json

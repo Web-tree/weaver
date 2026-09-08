@@ -198,7 +198,7 @@ impl Ensure for EnsureFileExists {
 }
 
 /// `ensure.file.from_template` — render a module-relative Tera template into an
-/// app-relative destination. rw fully owns the destination file.
+/// app-relative destination. weaver fully owns the destination file.
 pub struct EnsureFileFromTemplate {
     /// Template path, relative to the module root.
     pub template: String,

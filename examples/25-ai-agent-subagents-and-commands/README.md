@@ -30,7 +30,7 @@ Each subagent and slash command is a Markdown file with YAML frontmatter:
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

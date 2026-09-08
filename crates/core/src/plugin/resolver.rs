@@ -170,7 +170,7 @@ impl PluginResolver {
                     });
                 }
 
-                // DEVELOPMENT MODE: Check if we're in the repo-weaver development directory
+                // DEVELOPMENT MODE: Check if we're in the Weaver development directory
                 // and if a local plugin exists in plugins/ directory
                 if let Some(local_wasm) = self.try_load_dev_plugin(name)? {
                     let sha256 = calculate_sha256(&local_wasm);

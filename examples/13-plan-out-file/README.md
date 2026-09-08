@@ -1,13 +1,13 @@
 # 13 - Plan Output File Safety Check
 
 Demonstrates plan-file safety semantics inspired by Terraform workflows: if the
-workspace changes after `rw plan --out`, `rw apply` with that saved plan must fail
+workspace changes after `wvr plan --out`, `wvr apply` with that saved plan must fail
 instead of applying stale intent.
 
 ## What this covers
 
-- `rw plan --out` creates a reusable plan artifact
-- `rw apply --plan <file>` validates the workspace fingerprint before applying
+- `wvr plan --out` creates a reusable plan artifact
+- `wvr apply --plan <file>` validates the workspace fingerprint before applying
 - Apply fails safely when config/input drift occurs between plan and apply
 
 ## Before state
@@ -23,12 +23,12 @@ someone edited `weaver.yaml`:
 
 ```sh
 cd before
-rw apply --plan .rw/plan.json
+wvr apply --plan .rw/plan.json
 ```
 
 ## Expected result
 
-`rw apply --plan .rw/plan.json` fails with a stale-plan error (fingerprint/input
+`wvr apply --plan .rw/plan.json` fails with a stale-plan error (fingerprint/input
 mismatch), and no files are changed:
 
 - `app/policies.yaml` remains absent

@@ -1,11 +1,11 @@
 # 14 - Run Task with Arguments
 
-Demonstrates `rw run <app> <task> [args...]` using the app working directory and
+Demonstrates `wvr run <app> <task> [args...]` using the app working directory and
 forwarding positional arguments to the task command.
 
 ## What this covers
 
-- `rw run` task lookup from module manifest
+- `wvr run` task lookup from module manifest
 - Running task commands in `apps[].path`
 - Forwarding CLI args to the underlying command
 
@@ -19,11 +19,11 @@ forwarding positional arguments to the task command.
 
 ```sh
 cd before
-rw run payments deploy production us-east-1
+wvr run payments deploy production us-east-1
 ```
 
 ## Expected result
 
-After `rw run`, the workspace should match `after/`:
+After `wvr run`, the workspace should match `after/`:
 - `services/payments/deploy.log` is created by the task command
 - Log content includes forwarded args (`production`, `us-east-1`)

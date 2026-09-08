@@ -2208,70 +2208,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
-name = "repo-weaver"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "clap",
- "comfy-table",
- "console",
- "dialoguer",
- "predicates",
- "repo-weaver-core",
- "repo-weaver-ops",
- "serde",
- "serde_json",
- "serde_yml",
- "tempfile",
- "tera",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "walkdir",
-]
-
-[[package]]
-name = "repo-weaver-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "glob",
- "home",
- "repo-weaver-ops",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yml",
- "sha2 0.11.0",
- "tempfile",
- "tera",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "urlencoding",
- "wasmtime",
- "wasmtime-wasi",
-]
-
-[[package]]
-name = "repo-weaver-ops"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "fs_extra",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "reqwest"
 version = "0.12.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3765,6 +3701,70 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28af699d0a9c7e4e250b7b8e36167ae5215fbb4b7ae526bb4ce7b234ba0afc90"
 dependencies = [
  "wast 249.0.0",
+]
+
+[[package]]
+name = "weaver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "clap",
+ "comfy-table",
+ "console",
+ "dialoguer",
+ "predicates",
+ "serde",
+ "serde_json",
+ "serde_yml",
+ "tempfile",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "walkdir",
+ "weaver-core",
+ "weaver-ops",
+]
+
+[[package]]
+name = "weaver-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "glob",
+ "home",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yml",
+ "sha2 0.11.0",
+ "tempfile",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "urlencoding",
+ "wasmtime",
+ "wasmtime-wasi",
+ "weaver-ops",
+]
+
+[[package]]
+name = "weaver-ops"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "fs_extra",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

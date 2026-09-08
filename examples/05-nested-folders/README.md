@@ -18,7 +18,7 @@ in the output.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

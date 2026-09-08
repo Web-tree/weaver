@@ -19,7 +19,7 @@ configuration management.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

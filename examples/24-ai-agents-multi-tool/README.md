@@ -35,7 +35,7 @@ The user's core observation: "selecting which agents to use" is just "selecting 
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result
@@ -46,12 +46,12 @@ Three app directories, each with a different set of files:
 - `app-b` (`agents: ["copilot", "windsurf", "gemini", "aider"]`) → `AGENTS.md`, `.github/copilot-instructions.md`, `.windsurfrules`, `GEMINI.md`, `CONVENTIONS.md`, `.aider.conf.yml`.
 - `app-c` (default `["claude", "cursor", "copilot"]`) → `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/project.mdc`, `.github/copilot-instructions.md`.
 
-Re-running `rw apply` is a no-op. Removing an agent from the list and re-applying deletes the corresponding managed file (standard drift-safe removal behaviour).
+Re-running `wvr apply` is a no-op. Removing an agent from the list and re-applying deletes the corresponding managed file (standard drift-safe removal behaviour).
 
 ## Switching the selector at runtime
 
 Every ensure input is overridable via `--set`, so you can flip the selector without editing `weaver.yaml`:
 
 ```sh
-rw apply --set app-a.agents='["claude","cursor","copilot","windsurf","gemini","aider"]'
+wvr apply --set app-a.agents='["claude","cursor","copilot","windsurf","gemini","aider"]'
 ```

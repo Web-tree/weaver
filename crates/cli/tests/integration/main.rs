@@ -8,4 +8,5 @@ mod includes;
 mod k3s_nebula;
 mod list;
 mod module;
+mod naming;
 mod update;

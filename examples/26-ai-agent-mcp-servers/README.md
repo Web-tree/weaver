@@ -29,7 +29,7 @@ dependencies:
       transport: http
 ```
 
-This example brings the same capability into repo-weaver while keeping the `ensure.*` model — modules describe MCP servers as ensures, not as a separate dependency category, and the same `targets:` mechanism that selects per-tool agent files (example 24) selects per-tool MCP config files.
+This example brings the same capability into Weaver while keeping the `ensure.*` model — modules describe MCP servers as ensures, not as a separate dependency category, and the same `targets:` mechanism that selects per-tool agent files (example 24) selects per-tool MCP config files.
 
 ## Module contents
 
@@ -49,7 +49,7 @@ This example brings the same capability into repo-weaver while keeping the `ensu
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result
@@ -64,7 +64,7 @@ After apply, `before/` should match `after/`:
 
 ## Drift behaviour
 
-- Hand-edit a server's `url` in `.claude/settings.json` → `rw plan` flags drift on that block only.
+- Hand-edit a server's `url` in `.claude/settings.json` → `wvr plan` flags drift on that block only.
 - Hand-edit `permissions` (unmanaged) → never flagged.
 - Add a brand-new server to `weaver.yaml` and re-apply → block is updated, unrelated keys still survive.
 

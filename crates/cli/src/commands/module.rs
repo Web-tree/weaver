@@ -1,8 +1,8 @@
 use clap::{Args, Subcommand};
 use comfy_table::Table;
-use repo_weaver_core::config::{ModuleConfig, WeaverConfig};
-use repo_weaver_core::lockfile::Lockfile;
-use repo_weaver_core::module::ModuleResolver;
+use weaver_core::config::{ModuleConfig, WeaverConfig};
+use weaver_core::lockfile::Lockfile;
+use weaver_core::module::ModuleResolver;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 
@@ -157,7 +157,7 @@ fn run_add(args: AddArgs) -> anyhow::Result<()> {
     } else {
         println!("Added module '{}' ({} @ {})", name, args.source, args.r#ref);
     }
-    println!("Run 'rw plan' to preview what will converge.");
+    println!("Run 'wvr plan' to preview what will converge.");
     Ok(())
 }
 
@@ -197,7 +197,7 @@ fn run_update(args: UpdateArgs) -> anyhow::Result<()> {
                 let cache_dir = PathBuf::from(".rw/cache").join(&args.name);
                 if cache_dir.exists() {
                     std::fs::remove_dir_all(&cache_dir)?;
-                    println!("Module cache cleared. Run 'rw apply' to fetch new version.");
+                    println!("Module cache cleared. Run 'wvr apply' to fetch new version.");
                 }
             }
         }

@@ -17,7 +17,7 @@ producing different outputs in separate directories (monorepo pattern).
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

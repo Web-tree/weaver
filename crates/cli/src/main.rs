@@ -3,11 +3,11 @@ mod prompts;
 
 use clap::{CommandFactory, Parser};
 use commands::{apply, describe, init, list, plan};
-use repo_weaver_core::{LoggingOptions, setup_tracing_with_options};
+use weaver_core::{LoggingOptions, setup_tracing_with_options};
 
 #[derive(Parser)]
-#[command(name = "repo-weaver")]
-#[command(about = "Declarative repository management")]
+#[command(name = "wvr")]
+#[command(about = "Declarative directory configuration")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

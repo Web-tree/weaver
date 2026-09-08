@@ -1,14 +1,14 @@
-# Handoff: `beads` repo-weaver module
+# Handoff: `beads` Weaver module
 
-**Goal.** A repo-weaver module that onboards any repo to the team's shared **bd
+**Goal.** A Weaver module that onboards any repo to the team's shared **bd
 (beads)** issue tracker — which runs on **Dolt exposed over Tailscale**. Running
 the module produces a working `.envrc` (the DB password is pulled from 1Password,
 never set by hand), points `bd` at the shared server, and declares the
-prerequisites. Onboarding a new repo becomes `rw apply` + one task — no
+prerequisites. Onboarding a new repo becomes `wvr apply` + one task — no
 `.envrc.example` to copy, nothing pasted by hand.
 
 **Audience.** Whoever implements the module (human or agent). Assumes access to
-the repo-weaver codebase. Engine citations are `file:line` into this repo.
+the Weaver codebase. Engine citations are `file:line` into this repo.
 
 **Why this exists.** The current onboarding (see the `argocd-apps` repo,
 `apps/dolt/README.md`) ships an `.envrc.example` that each repo copies. That's
@@ -47,7 +47,7 @@ The infra behind these lives in `argocd-apps` (`apps/dolt`, `apps/tailscale-oper
 
 ---
 
-## 2. repo-weaver module model (engine-accurate — read before designing)
+## 2. Weaver module model (engine-accurate — read before designing)
 
 Verified against the working engine, not the aspirational docs. Where `specs/`,
 `PRD.md`, or example READMEs disagree with the code, the code wins.
@@ -104,13 +104,13 @@ ensures:                      # list — built-in types OR plugin dispatch (see 
 
 Two options, no third:
 
-- **Module task + `rw run`** — `tasks.<name>.command` runs via
-  `rw run <app> <task> [trailing args...]` in the app's directory, forwarding
+- **Module task + `wvr run`** — `tasks.<name>.command` runs via
+  `wvr run <app> <task> [trailing args...]` in the app's directory, forwarding
   trailing args (`run.rs:56-97`). Naive `split_whitespace` — **no quoted args
-  with spaces**. `rw apply` does **not** run tasks; they're explicit. rw does
+  with spaces**. `wvr apply` does **not** run tasks; they're explicit. wvr does
   **not** check idempotency — the command must be safe to re-run.
 - **WASM ensure plugin** — the only way to get `plan`/`execute` idempotency wired
-  into `rw apply`. `plan()` checks current state via the `process.exec` host
+  into `wvr apply`. `plan()` checks current state via the `process.exec` host
   import and returns pending actions; `execute()` re-checks then mutates. Model on
   `plugins/taskfile-task/src/lib.rs`. See §6 and `docs/PLUGIN_DEVELOPMENT.md`.
 
@@ -121,8 +121,8 @@ Two options, no third:
 Declared in the **consumer's** `weaver.yaml` at workspace or per-app level.
 **The module manifest has no `checks:` field** — a module cannot ship its own
 checks today, so the handoff must tell consumers to add them (or generate them
-into `weaver.yaml`; there's no automation for that yet). `rw check` runs them;
-**`rw apply` does not**.
+into `weaver.yaml`; there's no automation for that yet). `wvr check` runs them;
+**`wvr apply` does not**.
 
 ### 2.6 Sourcing a module
 
@@ -141,8 +141,8 @@ modules:
   path.
 - **`path:` (subdir) is declared but never read** — ship the module at the **repo
   root** of its own repo, or as its own directory referenced by `source:`.
-- `rw module add <source> --ref <r>` pins the commit into `weaver.lock`;
-  `rw module update <name> --ref <r>` re-pins.
+- `wvr module add <source> --ref <r>` pins the commit into `weaver.lock`;
+  `wvr module update <name> --ref <r>` re-pins.
 
 ### 2.7 Gotchas / do-not-rely-on (stale or unimplemented)
 
@@ -160,7 +160,7 @@ modules:
 
 Recommended: **pure module config** (no plugin) for v1. A `.envrc` is a rendered
 template; `bd init` and `direnv allow` are tasks. Add the plugin later (§6) only
-if you need `bd init` to fire automatically and idempotently during `rw apply`.
+if you need `bd init` to fire automatically and idempotently during `wvr apply`.
 
 ### 3.1 Layout
 
@@ -185,8 +185,8 @@ tasks:
   # Point bd at the shared Dolt over Tailscale. Idempotent-ish: bd init is safe to
   # re-run; it will report an existing project rather than clobber it.
   # Board choice is made at run time via the trailing --database arg (see §5):
-  #   rw run <app> init                       -> per-repo DB (needs the *.* grant)
-  #   rw run <app> init --database beads       -> shared board (works today)
+  #   wvr run <app> init                       -> per-repo DB (needs the *.* grant)
+  #   wvr run <app> init --database beads       -> shared board (works today)
   init:
     description: "Initialize/point bd at the shared Dolt server over Tailscale"
     command: "bd init --server-host dolt.stoat-pain.ts.net --server-port 3306 --server-user beads"
@@ -203,7 +203,7 @@ that errors on multi-account 1Password setups and would wrongly skip the op path
 `op read` with a full `op://vault/item/field` reference resolves across accounts.
 
 ```bash
-# Managed by repo-weaver (module: beads). bd → shared Dolt over Tailscale.
+# Managed by Weaver (module: beads). bd → shared Dolt over Tailscale.
 # Resolves the shared DB password: 1Password (all teammates) → kubectl (admins).
 # No manual key-setting; nothing sensitive is stored on disk.
 if command -v op >/dev/null 2>&1; then
@@ -217,10 +217,10 @@ export BEADS_DOLT_PASSWORD
   echo "beads: BEADS_DOLT_PASSWORD unresolved — run 'op signin' (needs {{ vault_ref }}) or ensure kubectl access" >&2
 ```
 
-Because `templates/` is auto-walked, `rw apply` renders this to `.envrc` at the
+Because `templates/` is auto-walked, `wvr apply` renders this to `.envrc` at the
 app root with no per-app `ensures:` needed. `.envrc` is typically gitignored in
-the target repo — that's fine: repo-weaver regenerates it on `apply` and
-drift-tracks it in `.rw/state.yaml`; a fresh clone just runs `rw apply` first.
+the target repo — that's fine: Weaver regenerates it on `apply` and
+drift-tracks it in `.rw/state.yaml`; a fresh clone just runs `wvr apply` first.
 
 ### 3.4 Consumer `weaver.yaml`
 
@@ -251,10 +251,10 @@ apps:
 
 ```sh
 op signin                                  # once per session (company SSO)
-rw apply                                   # renders .envrc
-rw run repo-weaver allow                   # direnv allow
-rw run repo-weaver init --database beads    # or omit --database for a per-repo board (§5)
-rw check repo-weaver                        # verify prerequisites
+wvr apply                                      # renders .envrc
+wvr run repo-weaver allow                      # direnv allow
+wvr run repo-wvr init --database beads      # or omit --database for a per-repo board (§5)
+wvr check repo-weaver                           # verify prerequisites
 bd ready                                    # see the board
 ```
 
@@ -266,10 +266,10 @@ bd ready                                    # see the board
 **hardcoded** in the task command, and the **database is chosen at run time** via
 the forwarded trailing arg:
 
-- `rw run <app> init` → `bd init … --server-user beads` (no `--database`) → bd
+- `wvr run <app> init` → `bd init … --server-user beads` (no `--database`) → bd
   derives the DB name from the repo/prefix → **per-repo board** (needs the grant
   in §5).
-- `rw run <app> init --database beads` → **shared board** (works today).
+- `wvr run <app> init --database beads` → **shared board** (works today).
 
 Do **not** bake `--database` into the task command and then also pass one at run
 time — you'd emit `--database X --database Y`. Keep it out of the task; choose per
@@ -313,8 +313,8 @@ itself is board-model-agnostic (§4).
 
 ## 6. Optional: automatic, idempotent `bd init` via a WASM plugin
 
-Use only if `rw apply` must run `bd init` itself (with a real "already
-initialized" check) rather than a separate `rw run … init`. Scaffold per
+Use only if `wvr apply` must run `bd init` itself (with a real "already
+initialized" check) rather than a separate `wvr run … init`. Scaffold per
 `docs/PLUGIN_DEVELOPMENT.md`: `cargo component new --lib plugins/beads-init`,
 `world = "ensure-provider"`, `path = "../../wit"`. Model on
 `plugins/taskfile-task/src/lib.rs`.
@@ -387,9 +387,9 @@ task approach (§3) sidesteps this by being explicit.
   `vault_ref`. Follow the pattern in `crates/cli/tests/integration/`.
 - **No-`op-whoami`-gate regression** — assert the rendered `.envrc` does *not*
   contain `op whoami` (the multi-account bug this module fixes).
-- **Task shape** — `rw run <app> init` invokes `bd` with the expected args
+- **Task shape** — `wvr run <app> init` invokes `bd` with the expected args
   (can stub `bd` on `PATH` with a recorder script; avoid mocks per house style).
-- **Check semantics** — `rw check` fails when `.beads` is absent, passes when present.
+- **Check semantics** — `wvr check` fails when `.beads` is absent, passes when present.
 - If you build the plugin: `plan()` returns empty actions when `.beads/` exists,
   non-empty otherwise; `execute()` is a no-op when already initialized
   (mirror `plugins/*/` test style).
@@ -400,7 +400,7 @@ task approach (§3) sidesteps this by being explicit.
 
 1. **Board model** — shared `beads` vs per-repo DBs. Per-repo needs the `*.*`
    grant PR in `argocd-apps` (§5) merged + synced first. The module works either
-   way; only the `rw run … init` invocation differs.
+   way; only the `wvr run … init` invocation differs.
 2. **Plugin or task** — ship v1 as tasks (§3); add the `beads-init` plugin (§6)
    only if auto-apply idempotency is required.
 3. **Where the module lives** — its own git repo (recommended; clean `source:`
@@ -421,7 +421,7 @@ task approach (§3) sidesteps this by being explicit.
   ("Developer workflow", "Onboarding a teammate").
 - Infra: `argocd-apps` → `apps/dolt/` (Dolt + Service `tailscale.com/expose`),
   `apps/tailscale-operator/`.
-- repo-weaver engine: `crates/core/src/config.rs` (schema),
+- Weaver engine: `crates/core/src/config.rs` (schema),
   `crates/cli/src/commands/apply.rs` (apply loop), `run.rs`, `check.rs`,
   `crates/core/src/module.rs` (sourcing), `wit/plugin.wit`,
   `docs/PLUGIN_DEVELOPMENT.md`.

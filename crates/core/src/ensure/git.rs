@@ -1,6 +1,6 @@
 use crate::ensure::{Ensure, EnsureContext, EnsurePlan};
 use anyhow::Result;
-use repo_weaver_ops::git;
+use weaver_ops::git;
 use std::path::PathBuf;
 
 pub struct EnsureGitSubmodule {

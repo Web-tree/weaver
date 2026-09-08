@@ -1,6 +1,6 @@
 # my-project
 
-A sample project scaffolded by Repo Weaver
+A sample project scaffolded by Weaver
 
 ## Getting Started
 

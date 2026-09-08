@@ -17,7 +17,7 @@ Demonstrates multiple modules, each used by a different app in the same workspac
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

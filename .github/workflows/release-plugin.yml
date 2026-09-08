@@ -106,7 +106,7 @@ jobs:
 
                       ## Installation
 
-                      This plugin will be automatically downloaded by `repo-weaver` when specified in your `weaver.yaml`:
+                      This plugin will be automatically downloaded by `weaver` when specified in your `weaver.yaml`:
 
                       ```yaml
                       plugins:

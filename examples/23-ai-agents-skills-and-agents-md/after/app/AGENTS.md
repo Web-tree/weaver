@@ -7,7 +7,7 @@ Contributors — human and AI — are expected to read this file before touching
 
 ## Manual Additions
 
-> Hand-written notes that repo-weaver must preserve across runs.
+> Hand-written notes that Weaver must preserve across runs.
 
 - Before opening a PR, post a preview link in `#eng-reviews`.
 - Never log customer email addresses, even at debug level.

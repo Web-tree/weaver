@@ -40,7 +40,7 @@ What it needs from the engine (the gap this pins down):
 The real target is `~/.tmux.conf`, a home dotfile outside any repo. Rather than
 write blindly into `$HOME`, the example models the idiomatic setup: a **dotfiles
 repo** whose `home/` tree mirrors `$HOME` and is stowed/symlinked there (GNU
-Stow / chezmoi style). repo-weaver converges the *tracked* copy
+Stow / chezmoi style). Weaver converges the *tracked* copy
 (`home/.tmux.conf`), which keeps the change reviewable, diffable, and testable.
 
 ## Module contents
@@ -54,7 +54,7 @@ Stow / chezmoi style). repo-weaver converges the *tracked* copy
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result
@@ -73,8 +73,8 @@ glyph-stripping format fragment and the `#`-comment section marker.
 
 ## Applying it to a live tmux server
 
-File convergence is repo-weaver's job; reloading the running server is an
-operational step the consumer runs after `rw apply` (or wires as a task):
+File convergence is Weaver's job; reloading the running server is an
+operational step the consumer runs after `wvr apply` (or wires as a task):
 
 ```sh
 tmux source-file ~/.tmux.conf
@@ -86,7 +86,7 @@ tmux list-windows -a -F '#{session_name}:#{window_index}' \
 
 ## Drift behaviour (once implemented)
 
-- Edit a line inside the `rw:section` region → `rw plan` flags drift on that
+- Edit a line inside the `rw:section` region → `wvr plan` flags drift on that
   region only.
 - Edit anything outside the markers (your keybindings, status options) → never
   flagged; it is not managed.

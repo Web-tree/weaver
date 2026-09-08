@@ -1,6 +1,6 @@
 use clap::Args;
-use repo_weaver_core::config::{ModuleManifest, WeaverConfig};
-use repo_weaver_core::module::ModuleResolver;
+use weaver_core::config::{ModuleManifest, WeaverConfig};
+use weaver_core::module::ModuleResolver;
 use serde_yml::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -107,7 +107,7 @@ pub async fn run(args: DescribeArgs) -> anyhow::Result<()> {
 
         println!("Ensures:");
         for entry in &manifest.ensures {
-            use repo_weaver_core::config::{EnsureConfig, EnsureEntry};
+            use weaver_core::config::{EnsureConfig, EnsureEntry};
             match entry {
                 EnsureEntry::Known(EnsureConfig::GitSubmodule { url, path, r#ref }) => {
                     println!("  - git.submodule: {} -> {} ({})", url, path, r#ref);
@@ -131,7 +131,7 @@ pub async fn run(args: DescribeArgs) -> anyhow::Result<()> {
         if !app_config.ensures.is_empty() {
             println!("App Ensures:");
             for ensure in &app_config.ensures {
-                use repo_weaver_core::config::EnsureSpec;
+                use weaver_core::config::EnsureSpec;
                 match ensure {
                     EnsureSpec::FileExists { dest, .. } => {
                         println!("  - ensure.file.exists: {dest}")

@@ -20,7 +20,7 @@ Demonstrates how to **block hostile module content** (Unicode bidi/invisible-cha
 
 ## Why
 
-[microsoft/apm](https://github.com/microsoft/apm) advertises Unicode-exploit content scanning at install time as a default security feature. Repo-weaver fetches Markdown skills/agents from arbitrary git sources too, and renders them into the user's repo (and Claude reads them as instructions). A poisoned skill — for example a directive hidden inside a U+202E override — is the same threat model. This example encodes the desired countermeasure.
+[microsoft/apm](https://github.com/microsoft/apm) advertises Unicode-exploit content scanning at install time as a default security feature. Weaver fetches Markdown skills/agents from arbitrary git sources too, and renders them into the user's target directory (and Claude reads them as instructions). A poisoned skill — for example a directive hidden inside a U+202E override — is the same threat model. This example encodes the desired countermeasure.
 
 The Trojan Source class of attack is documented in [Boucher & Anderson 2021](https://trojansource.codes/).
 
@@ -31,20 +31,20 @@ This example does not need a remote module — it ships two **fixtures** locally
 - `fixtures/clean-skill.md` — a normal skill file. Apply succeeds.
 - `fixtures/malicious-skill.md` — contains a U+202E (right-to-left override) inside a markdown bullet. Apply must abort.
 
-Two apps point at the two fixtures so a single `rw plan` shows both the success and the failure paths.
+Two apps point at the two fixtures so a single `wvr plan` shows both the success and the failure paths.
 
 ## How to run
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result
 
 - `app-clean/.claude/skills/example/SKILL.md` is rendered successfully.
 - `app-malicious/.claude/skills/example/SKILL.md` is **not** written.
-- `rw apply` exits with code 3 (EC-003) and stderr matches `after/expected-stderr.txt`:
+- `wvr apply` exits with code 3 (EC-003) and stderr matches `after/expected-stderr.txt`:
 
 ```
 error: check.content_scan failed for app=app-malicious
@@ -57,7 +57,7 @@ error: check.content_scan failed for app=app-malicious
 
 ## Composition with the existing checks model
 
-The new check slots into the same `checks:` array used by examples 20 (`check.k8s.ingress_annotations`) and 21 (`check.terraform.ec2_tags`). Same exit codes, same `--fail-on` semantics, same `rw plan` reporting. The difference is the **input domain**: existing checks operate on user-authored YAML/HCL; `check.content_scan` operates on module-supplied Markdown / templates.
+The new check slots into the same `checks:` array used by examples 20 (`check.k8s.ingress_annotations`) and 21 (`check.terraform.ec2_tags`). Same exit codes, same `--fail-on` semantics, same `wvr plan` reporting. The difference is the **input domain**: existing checks operate on user-authored YAML/HCL; `check.content_scan` operates on module-supplied Markdown / templates.
 
 ## Why this is a check, not an ensure
 

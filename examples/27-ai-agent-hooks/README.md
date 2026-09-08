@@ -25,7 +25,7 @@ Demonstrates how a module declares **Claude Code hooks** (`PreToolUse`, `PostToo
 
 ## Comparison to APM
 
-[microsoft/apm](https://github.com/microsoft/apm) lists `hooks` as one of its seven primitives. APM resolves them at install time; repo-weaver applies them as part of the same plan/apply convergence loop as every other ensure, so drift detection works the same way (edit a hook by hand → `rw plan` flags it).
+[microsoft/apm](https://github.com/microsoft/apm) lists `hooks` as one of its seven primitives. APM resolves them at install time; Weaver applies them as part of the same plan/apply convergence loop as every other ensure, so drift detection works the same way (edit a hook by hand → `wvr plan` flags it).
 
 ## Module contents
 
@@ -36,7 +36,7 @@ Demonstrates how a module declares **Claude Code hooks** (`PreToolUse`, `PostToo
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result
@@ -46,7 +46,7 @@ rw apply
 
 ## Drift behaviour
 
-- Edit the `command` of a managed hook → `rw plan` flags drift.
+- Edit the `command` of a managed hook → `wvr plan` flags drift.
 - Add an unrelated `env` key to `settings.json` → never flagged.
 - Set `enable_secret_redaction: false` and re-apply → only that hook is removed; the `SessionStart` hook and unmanaged keys survive.
 

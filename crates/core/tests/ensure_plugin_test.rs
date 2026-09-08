@@ -1,4 +1,4 @@
-use repo_weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
+use weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
 use std::path::Path;
 
 #[test]

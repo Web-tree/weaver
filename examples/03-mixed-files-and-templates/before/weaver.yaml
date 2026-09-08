@@ -9,5 +9,5 @@ apps:
     path: "app"
     inputs:
       project_name: "my-project"
-      description: "A sample project scaffolded by Repo Weaver"
+      description: "A sample project scaffolded by Weaver"
       port: 3000

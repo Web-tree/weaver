@@ -60,12 +60,12 @@ apps:
     // But we need .rw/state.yaml or it might complain?
     // apply.rs:44: let mut state = State::load(state_path)?;
     // State::load usually handles missing file by creating empty state?
-    // Let's check State::load implementation if possible, or just ensure .rw dir exists.
+    // Let's check State::load implementation if possible, or just ensure .weaver dir exists.
     std::fs::create_dir_all(ctx.root.join(".rw")).unwrap();
     ctx.write_file(".rw/state.yaml", "files: {}");
     ctx.write_file(".rw/answers.yaml", "{}");
 
-    // Run rw apply --dry-run (plan)
+    // Run wvr apply --dry-run (plan)
     let mut cmd = cmd();
     let assert = cmd.arg("plan").current_dir(&ctx.root).assert();
 

@@ -35,7 +35,7 @@ impl Default for State {
 pub struct OwnedRegion {
     /// Region identifier (block-marker id, or `heading:<path>`).
     pub id: String,
-    /// SHA-256 of the rendered content rw last wrote into this region.
+    /// SHA-256 of the rendered content weaver last wrote into this region.
     pub checksum: String,
 }
 

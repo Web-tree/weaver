@@ -19,7 +19,7 @@ Today every module pull is "whole git repo". That works for purpose-built module
 - `anthropics/skills` → ships dozens of independent skill folders.
 - `github/awesome-copilot` → ships dozens of agents and prompts as individual files.
 
-Pulling the entire repo to use one skill is wasteful and over-broadens drift detection (an unrelated upstream change to a different skill would still touch the cache for this repo). APM solves this by allowing dependency entries like `anthropics/skills/skills/frontend-design` and `github/awesome-copilot/agents/api-architect.agent.md` — i.e. a `repo + sub-path` tuple. This example brings the same capability to repo-weaver.
+Pulling the entire repo to use one skill is wasteful and over-broadens drift detection (an unrelated upstream change to a different skill would still touch the cache for this repo). APM solves this by allowing dependency entries like `anthropics/skills/skills/frontend-design` and `github/awesome-copilot/agents/api-architect.agent.md` — i.e. a `repo + sub-path` tuple. This example brings the same capability to Weaver.
 
 ## Comparison to APM
 
@@ -30,7 +30,7 @@ dependencies:
     - anthropics/skills/skills/frontend-design
     - github/awesome-copilot/agents/api-architect.agent.md
 
-# repo-weaver (this example)
+# Weaver (this example)
 modules:
   - name: frontend-skill
     source: https://github.com/anthropics/skills
@@ -44,7 +44,7 @@ modules:
       - agents/api-architect.agent.md
 ```
 
-Same outcome, expressed in repo-weaver's existing `modules:` schema.
+Same outcome, expressed in Weaver's existing `modules:` schema.
 
 ## Lockfile shape (proposed)
 
@@ -77,8 +77,8 @@ Modules without `paths:` keep today's single `checksum:` field for the whole tre
 
 ```sh
 cd before
-rw plan        # Shows what would be fetched
-rw apply       # Materialises only the listed paths
+wvr plan        # Shows what would be fetched
+wvr apply       # Materialises only the listed paths
 ```
 
 ## Expected result

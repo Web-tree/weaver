@@ -1,4 +1,4 @@
-# Repo Weaver: Gap Analysis vs PRD
+# Weaver: Gap Analysis vs PRD
 
 **Created**: 2026-01-03  
 **Reference**: [PRD.md](../PRD.md) Section 12 (MVP definition)
@@ -19,10 +19,10 @@ This document tracks the gaps between the original PRD requirements and current 
 | `ensure.folder.exists` | §6 | ✅ Complete |
 | `ensure.file.from_template` | §6 | ✅ Complete |
 | `ensure.task.wrapper` | §6 | ✅ Complete |
-| `rw init` | §8 | ✅ Complete |
-| `rw plan` | §8 | ✅ Complete |
-| `rw apply` | §8 | ✅ Complete |
-| `rw run` | §8 | ✅ Complete |
+| `wvr init` | §8 | ✅ Complete |
+| `wvr plan` | §8 | ✅ Complete |
+| `wvr apply` | §8 | ✅ Complete |
+| `wvr run` | §8 | ✅ Complete |
 | Pipeline tasks with JSON capture | §7.1-7.2 | ✅ Complete |
 | AWS SSM WASM plugin | §6 (secrets) | ✅ Complete |
 | Secret redaction (`Secret<T>`) | §9.5 | ✅ Complete |
@@ -39,7 +39,7 @@ This document tracks the gaps between the original PRD requirements and current 
 | Feature | PRD Section | Spec | Notes |
 |---------|-------------|------|-------|
 | `includes` YAML merging | §5.1-5.2 | 002 | Tree-like config, deep merge maps, concat arrays |
-| `rw list` command | §8 | 002 | Show apps and tasks |
+| `wvr list` command | §8 | 002 | Show apps and tasks |
 | `ensure.git.submodule` | §6, §12 | 002 | Vendor upstream dependencies |
 | `ensure.git.clone_pinned` | §6, §12 | 002 | Alternative to submodules |
 | k3s-nebula validation | §10, §14 | 002 | End-to-end acceptance criteria |
@@ -48,10 +48,10 @@ This document tracks the gaps between the original PRD requirements and current 
 
 | Feature | PRD Section | Spec | Notes |
 |---------|-------------|------|-------|
-| `rw describe <app>` | §8 | 002 | Show resolved config after merges |
-| `rw check [app]` | §8 | 002 | Run validation checks |
-| `rw module list` | §8 | 002 | List modules with source/ref |
-| `rw module update` | §8 | 002 | Update pinned ref in config |
+| `wvr describe <app>` | §8 | 002 | Show resolved config after merges |
+| `wvr check [app]` | §8 | 002 | Run validation checks |
+| `wvr module list` | §8 | 002 | List modules with source/ref |
+| `wvr module update` | §8 | 002 | Update pinned ref in config |
 | `ensure.npm.script` | §6, §12 | 002 | Use `npm pkg set` |
 | Task composition (`call`) | §7.3 | 002 | Call other tasks |
 | Import tasks from modules | §7.3 | 002 | Reuse module tasks |
@@ -61,7 +61,7 @@ This document tracks the gaps between the original PRD requirements and current 
 | Feature | PRD Section | Spec | Notes |
 |---------|-------------|------|-------|
 | `ensure.ai.patch` | §4.6, §6, §12 | 002 | Diff, verify, rollback |
-| `--from <stepId>` for `rw run` | §8 | - | Resume from step |
+| `--from <stepId>` for `wvr run` | §8 | - | Resume from step |
 
 ---
 
@@ -87,16 +87,16 @@ Recommended order based on dependencies:
 ```
 Phase 1: Config Foundation
 ├── includes YAML merging (FR-001, FR-002, FR-003)
-└── rw list command (FR-004)
+└── wvr list command (FR-004)
 
 Phase 2: Git Ensures (P1)
 ├── ensure.git.submodule (FR-009)
 └── ensure.git.clone_pinned (FR-010)
 
 Phase 3: CLI Commands (P2)
-├── rw describe (FR-005)
-├── rw check (FR-006)
-└── rw module list/update (FR-007, FR-008)
+├── wvr describe (FR-005)
+├── wvr check (FR-006)
+└── wvr module list/update (FR-007, FR-008)
 
 Phase 4: Ecosystem Ensures (P2)
 └── ensure.npm.script (FR-011)
@@ -114,5 +114,5 @@ Phase 6: Validation
 
 | Spec | Branch | Status |
 |------|--------|--------|
-| 001-repo-weaver-mvp | `001-repo-weaver-mvp` | ✅ Complete |
+| 001-Weaver-mvp | `001-Weaver-mvp` | ✅ Complete |
 | 002-gap-analysis | `002-gap-analysis` | 📝 In Progress |

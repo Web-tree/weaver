@@ -152,13 +152,13 @@ fn run_example(example_dir: &Path, settings: &ExampleSettings) -> ExampleResult 
     prepare_module_sources(&before_workspace);
 
     let command = command_args(settings);
-    let output = Command::cargo_bin("rw")
-        .expect("rw binary should build")
+    let output = Command::cargo_bin("wvr")
+        .expect("weaver binary should build")
         .current_dir(&before_workspace)
         .env("HOME", workspace.path())
         .args(&command)
         .output()
-        .expect("failed to execute rw");
+        .expect("failed to execute wvr");
 
     let expect_failure = settings.expect_failure
         || settings

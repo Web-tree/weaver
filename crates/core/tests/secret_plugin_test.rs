@@ -1,4 +1,4 @@
-use repo_weaver_core::plugin::wasm::WasmPluginEngine;
+use weaver_core::plugin::wasm::WasmPluginEngine;
 use std::path::Path;
 
 /// Loads the aws-ssm secrets provider WASM component and calls `get-secret`

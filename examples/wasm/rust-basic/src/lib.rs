@@ -1,6 +1,6 @@
 //! # Rust Basic WASM Plugin Example
 //!
-//! This example demonstrates how to create a simple WASM plugin for repo-weaver
+//! This example demonstrates how to create a simple WASM plugin for Weaver
 //! using Rust and the WASI Component Model.
 //!
 //! ## Building

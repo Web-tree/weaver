@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 pub fn cmd() -> Command {
-    Command::cargo_bin("rw").unwrap()
+    Command::cargo_bin("wvr").unwrap()
 }
 
 pub struct TestContext {
@@ -35,7 +35,7 @@ impl TestContext {
     pub fn setup_module(&self, name: &str, ref_: &str, content: &str) {
         // Mocking a remote git repo is hard in pure integration tests without a real git server.
         // For MVP tests, we can use "file://" scheme if supported, or just mock the cache directly
-        // if we want to cheat, but `rw apply` calls `git clone`.
+        // if we want to cheat, but `wvr apply` calls `git clone`.
         //
         // Actually, ModuleResolver supports `file://` if we pass a path.
         // To properly test "update", we need a "remote" repo.

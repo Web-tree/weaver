@@ -1,11 +1,11 @@
 # 11 - Apply Stop on Drift
 
-Demonstrates the default `rw apply` drift behavior (`--strategy stop`): detect drift,
+Demonstrates the default `wvr apply` drift behavior (`--strategy stop`): detect drift,
 fail fast, and preserve local edits.
 
 ## What this covers
 
-- `rw apply` default conflict strategy (`stop`) (CLI contract: `rw apply`)
+- `wvr apply` default conflict strategy (`stop`) (CLI contract: `wvr apply`)
 - Drift safety when managed files are manually edited
 - No filesystem mutations when apply aborts on drift
 
@@ -18,11 +18,11 @@ fail fast, and preserve local edits.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result
 
-`rw apply` exits with a drift error, and `before/` remains unchanged (matching `after/`):
+`wvr apply` exits with a drift error, and `before/` remains unchanged (matching `after/`):
 - `app/deployment.yaml` keeps the user edit (`replicas: 5`)
 - `.rw/state.yaml` is not rewritten

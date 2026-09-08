@@ -21,14 +21,14 @@ Demonstrates drift detection when a user manually edits a managed file.
 cd before
 
 # Plan detects drift
-rw plan                          # exits with error: "Drift detected"
+wvr plan                          # exits with error: "Drift detected"
 
 # Apply with overwrite resolves it
-rw apply --strategy overwrite --auto-approve
+wvr apply --strategy overwrite --auto-approve
 ```
 
 ## Expected result
 
-After `rw apply --strategy overwrite`, `before/` should match `after/`:
+After `wvr apply --strategy overwrite`, `before/` should match `after/`:
 - `app/config.txt` restored to original module content
 - `.rw/state.yaml` updated with current checksum

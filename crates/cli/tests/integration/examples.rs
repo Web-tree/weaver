@@ -193,7 +193,7 @@ fn test_example_git_module() {
     let new_weaver_content = weaver_content.replace("ref: \"HEAD\"", "ref: \"master\"");
     std::fs::write(weaver_yaml_path, new_weaver_content).unwrap();
 
-    // Run rw apply
+    // Run wvr apply
     let mut cmd = cmd();
     let assert = cmd
         .arg("apply")

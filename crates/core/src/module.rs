@@ -1,5 +1,5 @@
 use crate::lockfile::{Lockfile, ModuleLock};
-use repo_weaver_ops::git;
+use weaver_ops::git;
 use std::path::PathBuf;
 
 pub struct ModuleResolver {

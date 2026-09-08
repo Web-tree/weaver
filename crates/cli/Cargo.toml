@@ -1,11 +1,11 @@
 [package]
-name = "repo-weaver"
+name = "weaver"
 version.workspace = true
 edition.workspace = true
-default-run = "rw"
+default-run = "wvr"
 
 [[bin]]
-name = "rw"
+name = "wvr"
 path = "src/main.rs"
 
 [dependencies]
@@ -21,8 +21,8 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tokio.workspace = true
 anyhow.workspace = true
-repo-weaver-ops.workspace = true
-repo-weaver-core.workspace = true
+weaver-ops.workspace = true
+weaver-core.workspace = true
 tera.workspace = true
 walkdir.workspace = true
 

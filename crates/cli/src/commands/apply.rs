@@ -1,15 +1,15 @@
 use clap::Args;
-use repo_weaver_core::app::App;
-use repo_weaver_core::config::{ModuleManifest, WeaverConfig};
-use repo_weaver_core::engine::Engine;
-use repo_weaver_core::module::ModuleResolver;
-use repo_weaver_core::plan::PlanFile;
-use repo_weaver_core::plugin::resolver::PluginResolver;
-use repo_weaver_core::secret::SecretResolver;
-use repo_weaver_core::state::{
+use weaver_core::app::App;
+use weaver_core::config::{ModuleManifest, WeaverConfig};
+use weaver_core::engine::Engine;
+use weaver_core::module::ModuleResolver;
+use weaver_core::plan::PlanFile;
+use weaver_core::plugin::resolver::PluginResolver;
+use weaver_core::secret::SecretResolver;
+use weaver_core::state::{
     FileState, State, calculate_checksum, calculate_checksum_from_bytes,
 };
-use repo_weaver_core::template::{TemplateEngine, build_context};
+use weaver_core::template::{TemplateEngine, build_context};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tracing::info;
@@ -25,7 +25,7 @@ pub struct ApplyArgs {
     #[arg(long, default_value = "stop")]
     pub strategy: String, // Parsing enum later
 
-    /// Apply a previously saved plan file (`rw plan --out`). Fails if the
+    /// Apply a previously saved plan file (`wvr plan --out`). Fails if the
     /// workspace inputs no longer match the captured plan.
     #[arg(long)]
     pub plan: Option<PathBuf>,
@@ -48,7 +48,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         args.auto_approve
     );
 
-    let mut planned_changes: Vec<repo_weaver_core::plan::PlannedChange> = Vec::new();
+    let mut planned_changes: Vec<weaver_core::plan::PlannedChange> = Vec::new();
 
     // 1. Load config
     let config_path = Path::new("weaver.yaml");
@@ -153,7 +153,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
                         let current_chk = calculate_checksum(&dest_path)?;
                         if file_state.checksum != current_chk {
                             if dry_run {
-                                planned_changes.push(repo_weaver_core::plan::PlannedChange {
+                                planned_changes.push(weaver_core::plan::PlannedChange {
                                     action: "drift".into(),
                                     path: dest_path.display().to_string(),
                                     preview: None,
@@ -172,7 +172,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
 
                     // Write File
                     if dry_run {
-                        planned_changes.push(repo_weaver_core::plan::PlannedChange {
+                        planned_changes.push(weaver_core::plan::PlannedChange {
                             action: "create".into(),
                             path: dest_path.display().to_string(),
                             preview: None,
@@ -219,7 +219,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
                         let current_chk = calculate_checksum(&dest_path)?;
                         if file_state.checksum != current_chk {
                             if dry_run {
-                                planned_changes.push(repo_weaver_core::plan::PlannedChange {
+                                planned_changes.push(weaver_core::plan::PlannedChange {
                                     action: "drift".into(),
                                     path: dest_path.display().to_string(),
                                     preview: None,
@@ -237,7 +237,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
                     }
 
                     if dry_run {
-                        planned_changes.push(repo_weaver_core::plan::PlannedChange {
+                        planned_changes.push(weaver_core::plan::PlannedChange {
                             action: "create".into(),
                             path: dest_path.display().to_string(),
                             preview: None,
@@ -266,7 +266,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         let input_ctx = build_context(&app.inputs)?;
         app_tera_context.extend(input_ctx);
 
-        let ensure_ctx = repo_weaver_core::ensure::EnsureContext {
+        let ensure_ctx = weaver_core::ensure::EnsureContext {
             app_path: dest_root.clone(),
             dry_run,
             module_path: module_path.clone(),
@@ -277,11 +277,11 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         // context), npm.* via the native JSON path.
         // Applied after files/templates so they can mutate generated artefacts.
         for ensure in &app_config.ensures {
-            if let Some(built) = repo_weaver_core::ensure::build_app_ensure(ensure) {
+            if let Some(built) = weaver_core::ensure::build_app_ensure(ensure) {
                 let plan = built.plan(&ensure_ctx)?;
                 if dry_run {
                     if !plan.actions.is_empty() {
-                        planned_changes.push(repo_weaver_core::plan::PlannedChange {
+                        planned_changes.push(weaver_core::plan::PlannedChange {
                             action: "update".into(),
                             path: plan.description.clone(),
                             preview: None,
@@ -293,14 +293,14 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
                     built.execute(&ensure_ctx)?;
                 }
             } else if dry_run {
-                planned_changes.push(repo_weaver_core::plan::PlannedChange {
+                planned_changes.push(weaver_core::plan::PlannedChange {
                     action: "update".into(),
                     path: format!("{:?}", ensure),
                     preview: None,
                 });
                 info!("Would apply ensure {:?} for {}", ensure, app_config.name);
             } else {
-                repo_weaver_core::ensures::apply_ensure(&dest_root, ensure)?;
+                weaver_core::ensures::apply_ensure(&dest_root, ensure)?;
             }
         }
 
@@ -309,12 +309,12 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         // types to WASM plugins resolved via `plugin_resolver`.
         for ensure_config in &manifest.ensures {
             let ensure =
-                repo_weaver_core::ensure::build_ensure(ensure_config, Some(&plugin_resolver))
+                weaver_core::ensure::build_ensure(ensure_config, Some(&plugin_resolver))
                     .await?;
             let plan = ensure.plan(&ensure_ctx)?;
             if dry_run {
                 if !plan.actions.is_empty() {
-                    planned_changes.push(repo_weaver_core::plan::PlannedChange {
+                    planned_changes.push(weaver_core::plan::PlannedChange {
                         action: "update".into(),
                         path: plan.description.clone(),
                         preview: None,
@@ -342,11 +342,11 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         if !module_lock.modules.is_empty() {
             let lockfile_path = Path::new("weaver.lock");
             let mut on_disk = if lockfile_path.exists() {
-                serde_yml::from_str::<repo_weaver_core::lockfile::Lockfile>(
+                serde_yml::from_str::<weaver_core::lockfile::Lockfile>(
                     &std::fs::read_to_string(lockfile_path)?,
                 )?
             } else {
-                repo_weaver_core::lockfile::Lockfile {
+                weaver_core::lockfile::Lockfile {
                     version: "1".to_string(),
                     ..Default::default()
                 }
@@ -366,7 +366,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         info!("Apply complete.");
     } else {
         if !planned_changes.is_empty() {
-            print!("{}", repo_weaver_core::plan::render_changes(&planned_changes));
+            print!("{}", weaver_core::plan::render_changes(&planned_changes));
             info!("{} change(s) to converge.", planned_changes.len());
         }
         info!("Plan complete. No changes made.");
@@ -392,7 +392,7 @@ fn collect_current_inputs(config: &WeaverConfig) -> BTreeMap<String, serde_json:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use repo_weaver_core::config::{AppConfig, WeaverConfig};
+    use weaver_core::config::{AppConfig, WeaverConfig};
     use std::collections::HashMap;
 
     fn make_config(inputs: HashMap<String, serde_yml::Value>) -> WeaverConfig {

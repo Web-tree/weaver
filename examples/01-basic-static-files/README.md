@@ -6,7 +6,7 @@ verbatim into the app directory.
 ## What this covers
 
 - `ensure.file.copy` (PRD §6)
-- Basic `rw apply` workflow (PRD §8)
+- Basic `wvr apply` workflow (PRD §8)
 - State tracking in `.rw/state.yaml`
 
 ## Module contents
@@ -18,7 +18,7 @@ verbatim into the app directory.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

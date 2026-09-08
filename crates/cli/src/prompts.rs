@@ -1,5 +1,5 @@
 use dialoguer::{theme::ColorfulTheme, Input};
-use repo_weaver_core::config::ModuleManifest;
+use weaver_core::config::ModuleManifest;
 use serde_yml::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;

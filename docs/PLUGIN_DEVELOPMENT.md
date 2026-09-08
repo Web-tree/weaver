@@ -9,7 +9,7 @@
 
 ## Creating a New Plugin
 
-This guide walks you through creating a new plugin for `repo-weaver`.
+This guide walks you through creating a new plugin for `wvr`.
 
 ### Prerequisites
 
@@ -309,7 +309,7 @@ ls -lh plugins/<plugin-name>/plugin.wasm
 
 ## FAQ
 
-**Q: Do I need to build plugins to use repo-weaver?**  
+**Q: Do I need to build plugins to use wvr?**
 A: No! End users never build plugins. They're automatically downloaded from GitHub releases.
 
 **Q: When should I build plugins locally?**  

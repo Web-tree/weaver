@@ -17,7 +17,7 @@ Demonstrates advanced Tera template features: conditionals, loops, and filters.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

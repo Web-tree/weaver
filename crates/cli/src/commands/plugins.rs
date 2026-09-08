@@ -1,8 +1,8 @@
 use clap::{Args, Subcommand};
-use repo_weaver_core::config::WeaverConfig;
-use repo_weaver_core::lockfile::Lockfile;
-use repo_weaver_core::plugin::cache::PluginCache;
-use repo_weaver_core::plugin::resolver::PluginResolver;
+use weaver_core::config::WeaverConfig;
+use weaver_core::lockfile::Lockfile;
+use weaver_core::plugin::cache::PluginCache;
+use weaver_core::plugin::resolver::PluginResolver;
 use std::path::{Path, PathBuf};
 
 /// Manage plugins
@@ -47,7 +47,7 @@ fn execute_list() -> anyhow::Result<()> {
 
     if !lockfile_path.exists() {
         println!("No plugins found (weaver.lock does not exist)");
-        println!("Run 'rw apply' to resolve and lock plugins");
+        println!("Run 'wvr apply' to resolve and lock plugins");
         return Ok(());
     }
 
@@ -90,7 +90,7 @@ fn execute_verify() -> anyhow::Result<()> {
     let lockfile_path = Path::new("weaver.lock");
 
     if !lockfile_path.exists() {
-        anyhow::bail!("weaver.lock not found. Run 'rw apply' first.");
+        anyhow::bail!("weaver.lock not found. Run 'wvr apply' first.");
     }
 
     let content = std::fs::read_to_string(lockfile_path)?;
@@ -131,7 +131,7 @@ fn execute_verify() -> anyhow::Result<()> {
         println!("\n✓ All plugins verified successfully");
         Ok(())
     } else {
-        anyhow::bail!("Some plugins failed verification. Run 'rw plugins update' to fix.");
+        anyhow::bail!("Some plugins failed verification. Run 'wvr plugins update' to fix.");
     }
 }
 
@@ -155,7 +155,7 @@ async fn execute_update(plugin: Option<String>, all: bool) -> anyhow::Result<()>
     }
 
     // Determine which plugins to update
-    let plugins_to_update: Vec<(&String, &repo_weaver_core::config::PluginConfig)> = if all {
+    let plugins_to_update: Vec<(&String, &weaver_core::config::PluginConfig)> = if all {
         config.plugins.iter().collect()
     } else if let Some(ref name) = plugin {
         if let Some(plugin_config) = config.plugins.get(name) {

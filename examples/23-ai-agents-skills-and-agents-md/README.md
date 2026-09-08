@@ -8,7 +8,7 @@ Demonstrates the new `ensure.file.md_section` ensure by solving a concrete, real
   - `selector.type: "heading"` — path-based CommonMark heading targeting (`## Skills`)
   - `selector.type: "block_marker"` — HTML-comment delimited region (`<!-- rw:section id="..." -->`)
 - `ensure.file.from_template` for whole-file skill definitions (plain path, already covered by example 02)
-- Preserving pre-existing user content in `AGENTS.md` across `rw apply` runs
+- Preserving pre-existing user content in `AGENTS.md` across `wvr apply` runs
 - Rendering lists and per-item catalogues in Tera templates
 
 ## Why two selector kinds?
@@ -31,7 +31,7 @@ Reserved selector types (`mdast`, `mdq`, `regex`, `frontmatter`, `line_range`) a
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result
@@ -47,11 +47,11 @@ After apply, `before/` should match `after/`:
 
 ## Drift behaviour
 
-Try these after a successful `rw apply`:
+Try these after a successful `wvr apply`:
 
-- Edit a bullet inside the `## Skills` section → `rw plan` exits non-zero with drift on that region only.
+- Edit a bullet inside the `## Skills` section → `wvr plan` exits non-zero with drift on that region only.
 - Edit `## Manual Additions` → never flagged; it's not managed.
-- Add a wholly new `## Glossary` heading anywhere in the file → preserved; repo-weaver doesn't care about unmanaged siblings.
+- Add a wholly new `## Glossary` heading anywhere in the file → preserved; Weaver doesn't care about unmanaged siblings.
 - Change `skills` / `workflow` inputs in `weaver.yaml` and re-apply → the `## Skills` region is updated; `## Manual Additions` and the `## Glossary` you added still survive.
 
 ## Why put skill ordering in AGENTS.md?

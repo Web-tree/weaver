@@ -1,6 +1,6 @@
 # Rust Basic WASM Plugin Example
 
-This example demonstrates how to create a simple WASM plugin for `repo-weaver` using Rust and the WASI Component Model.
+This example demonstrates how to create a simple WASM plugin for `Weaver` using Rust and the WASI Component Model.
 
 ## Overview
 
@@ -54,7 +54,7 @@ interface secrets {
 
 ## Usage
 
-Once compiled, the `.wasm` file can be loaded by the `repo-weaver` host runtime for secret resolution.
+Once compiled, the `.wasm` file can be loaded by the `Weaver` host runtime for secret resolution.
 
 ## Mock Behavior
 

@@ -24,7 +24,7 @@ applied with v1, and the config now points to v2.
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

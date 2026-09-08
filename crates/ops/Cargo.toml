@@ -1,5 +1,5 @@
 [package]
-name = "repo-weaver-ops"
+name = "weaver-ops"
 version.workspace = true
 edition.workspace = true
 

@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-/// Saved plan artifact produced by `rw plan --out` and consumed by
-/// `rw apply --plan`. Inspired by Terraform plan-file workflows.
+/// Saved plan artifact produced by `wvr plan --out` and consumed by
+/// `wvr apply --plan`. Inspired by Terraform plan-file workflows.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanFile {
     pub format_version: String,

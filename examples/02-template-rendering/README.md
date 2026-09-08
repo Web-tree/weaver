@@ -16,7 +16,7 @@ Demonstrates template rendering with variable substitution using Tera (Jinja2-co
 
 ```sh
 cd before
-rw apply
+wvr apply
 ```
 
 ## Expected result

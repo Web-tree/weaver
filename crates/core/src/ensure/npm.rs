@@ -4,8 +4,8 @@ use anyhow::Result;
 
 /// Native `npm.script` ensure for module manifests.
 ///
-/// package.json is plain JSON, which Repo Weaver may edit directly (PRD §2:
-/// "Repo Weaver may parse only ... JSON"). Editing it natively is deterministic
+/// package.json is plain JSON, which Weaver may edit directly (PRD §2:
+/// "Weaver may parse only ... JSON"). Editing it natively is deterministic
 /// and needs no `npm` on PATH, so the built-in npm.script shares the same
 /// implementation as the app-level `ensure.npm.script` (see [`crate::ensures`]).
 ///
