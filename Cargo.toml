@@ -12,6 +12,7 @@ members = [
     "plugins/terraform-fmt",
     "plugins/k8s-apply",
     "plugins/taskfile-task",
+    "plugins/fs-symlink",
 ]
 default-members = ["crates/cli", "crates/core", "crates/ops"]
 
