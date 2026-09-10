@@ -7,6 +7,7 @@ use super::{
 use crate::config::PluginConfig;
 use crate::lockfile::{Lockfile, PluginLock};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -17,6 +18,12 @@ pub struct PluginResolver {
     offline: bool,
     // Track resolved plugins for lockfile generation
     resolved_plugins: RefCell<Vec<(String, ResolvedPlugin)>>,
+    // Declarative `plugins:` overrides from `WeaverConfig`, keyed by plugin
+    // name (e.g. "fs-symlink"). Consulted by `resolve_ensure_type` before
+    // falling back to registry auto-discovery, so a `path:`/`git:` override
+    // is honored by `wvr apply`'s generic ensure dispatch, not just by the
+    // `wvr plugins update/list/verify` subcommands.
+    plugins_config: HashMap<String, PluginConfig>,
 }
 
 impl PluginResolver {
@@ -31,12 +38,22 @@ impl PluginResolver {
             fetcher: PluginFetcher::new(),
             offline: false,
             resolved_plugins: RefCell::new(Vec::new()),
+            plugins_config: HashMap::new(),
         })
     }
 
     /// Set offline mode (error if plugin not cached)
     pub fn set_offline(&mut self, offline: bool) {
         self.offline = offline;
+    }
+
+    /// Provide the `plugins:` block from `WeaverConfig` so generic ensure
+    /// dispatch (`resolve_ensure_type`) can honor an explicit `path:`/`git:`
+    /// override for a plugin name instead of always going through the
+    /// registry. Backward compatible: plugin names with no entry here fall
+    /// through to the existing registry-based auto-discovery unchanged.
+    pub fn set_plugins_config(&mut self, plugins_config: HashMap<String, PluginConfig>) {
+        self.plugins_config = plugins_config;
     }
 
     /// Resolve a plugin from explicit configuration
@@ -77,6 +94,14 @@ impl PluginResolver {
         // Convert type name to plugin name
         // e.g., "npm.script" -> "npm-script"
         let plugin_name = type_name.replace('.', "-");
+
+        // Honor an explicit `plugins:` override (path: or git:) for this
+        // plugin name, if the config declared one. Falls back to registry
+        // auto-discovery below when absent, preserving today's behavior for
+        // every plugin that has no such override.
+        if let Some(plugin_config) = self.plugins_config.get(&plugin_name) {
+            return self.resolve(&plugin_name, plugin_config).await;
+        }
 
         // Use registry source for auto-discovered plugins
         let source = PluginSource::Registry {
@@ -448,5 +473,69 @@ fn format_source(source: &PluginSource) -> String {
         PluginSource::Local { path } => format!("path:{}", path.display()),
         PluginSource::Git { url, git_ref } => format!("git:{}@{}", url, git_ref),
         PluginSource::Registry { name } => format!("registry:{}", name),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// A `plugins:` entry for the resolved plugin name must be honored by
+    /// generic ensure dispatch (`resolve_ensure_type`), not just by the
+    /// `wvr plugins update/list/verify` subcommands — this is the bug this
+    /// module's `resolve_ensure_type` used to have: it always went through
+    /// `PluginSource::Registry` regardless of any configured override.
+    #[tokio::test]
+    async fn resolve_ensure_type_honors_plugins_config_override() {
+        let project_dir = TempDir::new().expect("tempdir");
+        let plugin_dir = project_dir.path().join("plugins").join("fs-symlink");
+        fs::create_dir_all(&plugin_dir).expect("mkdir");
+        fs::write(plugin_dir.join("plugin.wasm"), b"fake-wasm-bytes").expect("write wasm");
+
+        let mut resolver =
+            PluginResolver::new(project_dir.path().to_path_buf()).expect("resolver");
+        let mut plugins_config = HashMap::new();
+        plugins_config.insert(
+            "fs-symlink".to_string(),
+            PluginConfig {
+                git: None,
+                path: Some("plugins/fs-symlink".to_string()),
+                git_ref: None,
+            },
+        );
+        resolver.set_plugins_config(plugins_config);
+
+        // "fs.symlink" -> plugin name "fs-symlink" -> the `path:` override
+        // above, resolved via `resolve()` (PluginSource::Local), never
+        // touching the registry.
+        let resolved = resolver
+            .resolve_ensure_type("fs.symlink")
+            .await
+            .expect("should resolve via local path override");
+
+        assert_eq!(resolved.name, "fs-symlink");
+        assert!(matches!(resolved.source, PluginSource::Local { .. }));
+        assert_eq!(resolved.wasm_path, plugin_dir.join("plugin.wasm"));
+    }
+
+    /// With no matching `plugins:` entry, behavior is unchanged: dispatch
+    /// still falls through to registry auto-discovery (verified here by the
+    /// offline error it raises when nothing is cached and no network fetch
+    /// is allowed) — existing plugins with no override keep working exactly
+    /// as before this change.
+    #[tokio::test]
+    async fn resolve_ensure_type_without_override_falls_back_to_registry() {
+        let project_dir = TempDir::new().expect("tempdir");
+        let mut resolver =
+            PluginResolver::new(project_dir.path().to_path_buf()).expect("resolver");
+        resolver.set_offline(true);
+
+        let err = resolver
+            .resolve_ensure_type("no.such.plugin")
+            .await
+            .expect_err("offline + uncached + no override should error");
+
+        assert!(matches!(err, PluginError::PluginNotCached { .. }));
     }
 }
