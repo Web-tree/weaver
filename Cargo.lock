@@ -3916,7 +3916,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3943,7 +3943,7 @@ dependencies = [
 
 [[package]]
 name = "weaver-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3972,7 +3972,7 @@ dependencies = [
 
 [[package]]
 name = "weaver-ops"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "fs_extra",
@@ -3986,7 +3986,7 @@ dependencies = [
 
 [[package]]
 name = "weaver-test-support"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "flate2",
  "serde_json",
