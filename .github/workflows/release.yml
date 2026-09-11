@@ -1,0 +1,336 @@
+name: Release CLI
+
+# Publishes the `wvr` binary for a tag like `v0.2.0`.
+#
+# Entry points:
+#   * called by release-please.yml once it has tagged a release (the usual path;
+#     GITHUB_TOKEN-created tags cannot trigger `push: tags`);
+#   * a hand-pushed `vX.Y.Z` tag;
+#   * workflow_dispatch, which builds everything but publishes nothing.
+#
+# Plugin releases use their own tag shape (`<plugin>-v*`) and workflow.
+on:
+    workflow_call:
+        inputs:
+            tag:
+                description: "Release tag to build and publish"
+                required: true
+                type: string
+            publish:
+                # Required and passed explicitly: a called workflow sees the
+                # caller's `github.event_name`, so the publish decision cannot
+                # be inferred from the event.
+                description: "Attach the built assets to the release"
+                required: true
+                type: boolean
+    push:
+        tags:
+            - "v[0-9]+.[0-9]+.[0-9]+"
+            - "v[0-9]+.[0-9]+.[0-9]+-*"
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Tag to build as a dry run (nothing is published)"
+                required: false
+                type: string
+                default: ""
+
+permissions:
+    contents: read
+
+concurrency:
+    group: release-cli-${{ inputs.tag || github.ref }}
+    cancel-in-progress: false
+
+env:
+    CARGO_TERM_COLOR: always
+    CARGO_INCREMENTAL: "0"
+    # Never let the CLI under test phone home during the release build.
+    WVR_NO_UPDATE_CHECK: "1"
+
+jobs:
+    gate:
+        name: Verify tag and run tests
+        runs-on: ubuntu-24.04
+        outputs:
+            tag: ${{ steps.version.outputs.tag }}
+            version: ${{ steps.version.outputs.version }}
+            prerelease: ${{ steps.version.outputs.prerelease }}
+            publish: ${{ steps.version.outputs.publish }}
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ inputs.tag || github.ref }}
+
+            - name: Resolve version
+              id: version
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  INPUT_TAG: ${{ inputs.tag }}
+                  # Empty unless this run came through `workflow_call`.
+                  INPUT_PUBLISH: ${{ inputs.publish }}
+                  REF_NAME: ${{ github.ref_name }}
+                  REF_TYPE: ${{ github.ref_type }}
+              run: |
+                  set -euo pipefail
+
+                  cargo_version=$(
+                    awk '/^\[workspace\.package\]/{f=1} f && /^version[[:space:]]*=/{gsub(/[":]/,"",$3); print $3; exit}' Cargo.toml
+                  )
+                  if [ -z "$cargo_version" ]; then
+                    echo "::error::could not read version from [workspace.package] in Cargo.toml"
+                    exit 1
+                  fi
+
+                  tag="${INPUT_TAG:-}"
+                  if [ -z "$tag" ]; then
+                    if [ "$REF_TYPE" = "tag" ]; then
+                      tag="$REF_NAME"
+                    else
+                      tag="v$cargo_version"
+                    fi
+                  fi
+
+                  # The caller decides for `workflow_call` (its event name is
+                  # the caller's, so it says nothing about this run). Otherwise
+                  # a tag push publishes and a manual dispatch is a dry run.
+                  if [ -n "$INPUT_PUBLISH" ]; then
+                    publish="$INPUT_PUBLISH"
+                  elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+                    publish=false
+                  else
+                    publish=true
+                  fi
+
+                  version="${tag#v}"
+                  if [ "$version" != "$cargo_version" ]; then
+                    echo "::error::tag $tag does not match workspace version $cargo_version"
+                    exit 1
+                  fi
+
+                  case "$version" in
+                    *-*) prerelease=true ;;
+                    *) prerelease=false ;;
+                  esac
+
+                  {
+                    echo "tag=$tag"
+                    echo "version=$version"
+                    echo "prerelease=$prerelease"
+                    echo "publish=$publish"
+                  } >> "$GITHUB_OUTPUT"
+
+                  echo "Releasing wvr $version (tag $tag, prerelease=$prerelease, publish=$publish)"
+
+            - uses: actions-rust-lang/setup-rust-toolchain@v1
+              with:
+                  toolchain: stable
+                  # The action defaults to `-D warnings`, which would fail the
+                  # release on pre-existing lint noise.
+                  rustflags: ""
+
+            - name: Test
+              run: cargo test --locked
+
+    build:
+        name: ${{ matrix.target }}
+        needs: gate
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: true
+            matrix:
+                include:
+                    - target: aarch64-apple-darwin
+                      os: macos-15
+                    - target: x86_64-apple-darwin
+                      os: macos-15
+                    # Oldest supported glibc wins: built on 22.04 (glibc 2.35).
+                    - target: x86_64-unknown-linux-gnu
+                      os: ubuntu-22.04
+                    - target: aarch64-unknown-linux-gnu
+                      os: ubuntu-22.04-arm
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ inputs.tag || github.ref }}
+
+            - uses: actions-rust-lang/setup-rust-toolchain@v1
+              with:
+                  toolchain: stable
+                  target: ${{ matrix.target }}
+                  rustflags: ""
+
+            - name: Build
+              run: cargo build --locked --profile dist --bin wvr --target ${{ matrix.target }}
+
+            - name: Re-sign macOS binary
+              if: runner.os == 'macOS'
+              # Stripping invalidates the linker's ad-hoc signature, and
+              # unsigned arm64 binaries are killed on launch.
+              run: codesign --force --sign - "target/${{ matrix.target }}/dist/wvr"
+
+            - name: Smoke test
+              # Only the binary matching the runner's architecture can run here.
+              if: matrix.target != 'x86_64-apple-darwin'
+              run: |
+                  set -euo pipefail
+                  reported=$("target/${{ matrix.target }}/dist/wvr" --version)
+                  expected="wvr ${{ needs.gate.outputs.version }}"
+                  if [ "$reported" != "$expected" ]; then
+                    echo "::error::built binary reports '$reported', expected '$expected'"
+                    exit 1
+                  fi
+
+            - name: Package
+              id: package
+              env:
+                  TAG: ${{ needs.gate.outputs.tag }}
+                  TARGET: ${{ matrix.target }}
+              run: |
+                  set -euo pipefail
+                  archive="wvr-${TAG}-${TARGET}.tar.gz"
+
+                  mkdir -p dist
+                  # Store the binary at the archive root: the updater and the
+                  # install script both expect a bare `wvr` entry.
+                  tar -czf "dist/${archive}" -C "target/${TARGET}/dist" wvr
+
+                  cd dist
+                  if command -v sha256sum >/dev/null 2>&1; then
+                    sha256sum "$archive" > "${archive}.sha256"
+                  else
+                    shasum -a 256 "$archive" > "${archive}.sha256"
+                  fi
+                  cat "${archive}.sha256"
+
+                  echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: wvr-${{ matrix.target }}
+                  path: dist/
+                  if-no-files-found: error
+                  retention-days: 7
+
+    publish:
+        name: Publish release
+        needs: [gate, build]
+        if: needs.gate.outputs.publish == 'true'
+        runs-on: ubuntu-24.04
+        permissions:
+            contents: write
+            # Build provenance attestations.
+            id-token: write
+            attestations: write
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ inputs.tag || github.ref }}
+
+            - uses: actions/download-artifact@v4
+              with:
+                  path: dist
+                  pattern: wvr-*
+                  merge-multiple: true
+
+            - name: Collect checksums
+              env:
+                  TAG: ${{ needs.gate.outputs.tag }}
+              run: |
+                  set -euo pipefail
+                  cd dist
+
+                  # One manifest for the whole release; `wvr self-update` and
+                  # install.sh both read it.
+                  sha256sum ./*.tar.gz | sed 's| \./| |' > SHA256SUMS
+                  sha256sum -c SHA256SUMS
+                  cat SHA256SUMS
+
+                  # Ship the installer alongside the binaries so a release can
+                  # be installed without cloning the repository.
+                  cp ../scripts/install.sh install.sh
+
+                  ls -l
+
+            - name: Attest build provenance
+              uses: actions/attest-build-provenance@v3
+              with:
+                  subject-path: dist/*.tar.gz
+
+            - name: Publish assets
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ needs.gate.outputs.tag }}
+                  VERSION: ${{ needs.gate.outputs.version }}
+                  PRERELEASE: ${{ needs.gate.outputs.prerelease }}
+                  REPO: ${{ github.repository }}
+              run: |
+                  set -euo pipefail
+
+                  # release-please creates the release when it tags. A
+                  # hand-pushed tag has none, so create one with generated
+                  # notes; never overwrite notes that already exist.
+                  if ! gh release view "$TAG" >/dev/null 2>&1; then
+                    flags=(--verify-tag --title "wvr $VERSION" --generate-notes)
+                    if [ "$PRERELEASE" = "true" ]; then
+                      flags+=(--prerelease)
+                    fi
+                    gh release create "$TAG" "${flags[@]}"
+                  fi
+
+                  gh release upload "$TAG" \
+                    dist/*.tar.gz dist/*.tar.gz.sha256 dist/SHA256SUMS dist/install.sh \
+                    --clobber
+
+                  cat > install-notes.md <<EOF
+                  <!-- wvr-install-notes -->
+                  ## Install
+
+                  \`\`\`sh
+                  curl -fsSL https://github.com/$REPO/releases/download/$TAG/install.sh | sh
+                  \`\`\`
+
+                  Already running \`wvr\`:
+
+                  \`\`\`sh
+                  wvr self-update
+                  \`\`\`
+
+                  ## Verify
+
+                  Every archive is listed in \`SHA256SUMS\` and covered by a GitHub
+                  build provenance attestation:
+
+                  \`\`\`sh
+                  sha256sum -c SHA256SUMS --ignore-missing
+                  gh attestation verify wvr-$TAG-<target>.tar.gz --repo $REPO
+                  \`\`\`
+
+                  ## Targets
+
+                  | Platform | Asset |
+                  | --- | --- |
+                  | macOS (Apple silicon) | \`wvr-$TAG-aarch64-apple-darwin.tar.gz\` |
+                  | macOS (Intel) | \`wvr-$TAG-x86_64-apple-darwin.tar.gz\` |
+                  | Linux x86_64 (glibc 2.35+) | \`wvr-$TAG-x86_64-unknown-linux-gnu.tar.gz\` |
+                  | Linux arm64 (glibc 2.35+) | \`wvr-$TAG-aarch64-unknown-linux-gnu.tar.gz\` |
+                  EOF
+
+                  # Append install instructions below the changelog, once.
+                  body=$(gh release view "$TAG" --json body --jq .body)
+                  if ! printf '%s' "$body" | grep -qF "<!-- wvr-install-notes -->"; then
+                    { printf '%s\n\n' "$body"; cat install-notes.md; } > notes.md
+                    gh release edit "$TAG" --notes-file notes.md
+                  fi
+
+            - name: Release summary
+              env:
+                  TAG: ${{ needs.gate.outputs.tag }}
+              run: |
+                  {
+                    echo "## wvr $TAG published"
+                    echo
+                    echo '```'
+                    cat dist/SHA256SUMS
+                    echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
