@@ -1,0 +1,14 @@
+[package]
+name = "weaver-test-support"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+flate2.workspace = true
+serde_json.workspace = true
+sha2 = "0.11.0"
+tar.workspace = true
+tempfile.workspace = true
+tokio.workspace = true

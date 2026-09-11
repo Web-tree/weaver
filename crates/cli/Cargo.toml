@@ -2,6 +2,7 @@
 name = "weaver"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
 default-run = "wvr"
 
 [[bin]]
@@ -25,8 +26,10 @@ weaver-ops.workspace = true
 weaver-core.workspace = true
 tera.workspace = true
 walkdir.workspace = true
+semver.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true
 predicates.workspace = true
 tempfile.workspace = true
+weaver-test-support.workspace = true
