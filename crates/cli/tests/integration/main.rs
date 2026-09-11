@@ -9,4 +9,5 @@ mod k3s_nebula;
 mod list;
 mod module;
 mod naming;
+mod self_update;
 mod update;

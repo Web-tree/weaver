@@ -2,6 +2,7 @@
 name = "weaver-core"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
 
 [dependencies]
 serde.workspace = true
@@ -21,7 +22,11 @@ glob = "0.3"
 reqwest = { version = "0.13.0", features = ["blocking", "json"] }
 tokio.workspace = true
 chrono = "0.4.38"
+flate2.workspace = true
+semver.workspace = true
+tar.workspace = true
 weaver-ops.workspace = true
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true
+weaver-test-support.workspace = true

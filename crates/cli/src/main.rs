@@ -1,5 +1,6 @@
 mod commands;
 mod prompts;
+mod update_notice;
 
 use clap::{CommandFactory, Parser};
 use commands::{apply, describe, init, list, plan};
@@ -7,6 +8,7 @@ use weaver_core::{LoggingOptions, setup_tracing_with_options};
 
 #[derive(Parser)]
 #[command(name = "wvr")]
+#[command(version)]
 #[command(about = "Declarative directory configuration")]
 struct Cli {
     #[command(subcommand)]
@@ -44,6 +46,8 @@ enum Commands {
     /// Manage plugins
     Plugins(commands::plugins::PluginsArgs),
     Run(crate::commands::run::RunArgs),
+    /// Update wvr to the latest release
+    SelfUpdate(commands::self_update::SelfUpdateArgs),
 }
 
 #[tokio::main]
@@ -64,7 +68,24 @@ async fn main() -> anyhow::Result<()> {
         unsafe { std::env::set_var("NO_COLOR", "1") };
     }
 
-    match cli.command {
+    // `self-update` owns the release lifecycle end to end; every other command
+    // gets a release check running concurrently with it.
+    let update_watch = match cli.command {
+        Some(Commands::SelfUpdate(_)) => None,
+        _ => Some(update_notice::start(!cli.quiet && !cli.json)),
+    };
+
+    let result = dispatch(cli.command).await;
+
+    if let Some(watch) = update_watch {
+        watch.finish().await;
+    }
+
+    result
+}
+
+async fn dispatch(command: Option<Commands>) -> anyhow::Result<()> {
+    match command {
         Some(Commands::Init(args)) => {
             init::run(args)?;
         }
@@ -91,6 +112,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Some(Commands::Plugins(args)) => {
             commands::plugins::execute(args).await?;
+        }
+        Some(Commands::SelfUpdate(args)) => {
+            commands::self_update::run(args).await?;
         }
         None => {
             Cli::command().print_help()?;

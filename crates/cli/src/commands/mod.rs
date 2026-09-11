@@ -7,3 +7,4 @@ pub mod module;
 pub mod plan;
 pub mod plugins;
 pub mod run;
+pub mod self_update;

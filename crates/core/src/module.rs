@@ -9,9 +9,7 @@ pub struct ModuleResolver {
 
 impl ModuleResolver {
     pub fn new(existing: Option<Lockfile>) -> anyhow::Result<Self> {
-        let home =
-            home::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
-        let cache_dir = home.join(".rw").join("store");
+        let cache_dir = crate::paths::store_dir();
         let mut lockfile = existing.unwrap_or_default();
         if lockfile.version.is_empty() {
             lockfile.version = "1".to_string();

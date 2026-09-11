@@ -14,10 +14,9 @@ impl PluginCache {
         Self { root }
     }
 
-    /// Get the default cache directory (~/.rw/plugins/)
+    /// Get the default cache directory (`$WVR_HOME/plugins`, default `~/.rw/plugins`)
     pub fn default_root() -> PathBuf {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        PathBuf::from(home).join(".rw").join("plugins")
+        crate::paths::plugins_dir()
     }
 
     /// Check if the cache directory is accessible (writable)
