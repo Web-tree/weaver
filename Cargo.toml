@@ -18,7 +18,7 @@ members = [
 default-members = ["crates/cli", "crates/core", "crates/ops"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 repository = "https://github.com/Web-tree/weaver"
 
