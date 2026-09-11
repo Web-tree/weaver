@@ -1,0 +1,84 @@
+name: Release Please
+
+# Conventional commits on `main` accumulate into a release PR. Merging that PR
+# bumps the workspace version, updates CHANGELOG.md, tags `vX.Y.Z` and creates
+# the GitHub release; the binaries are then built and attached by release.yml.
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: release-please-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    release-please:
+        name: Release PR / tag
+        runs-on: ubuntu-24.04
+        permissions:
+            contents: write
+            pull-requests: write
+        outputs:
+            released: ${{ steps.release.outputs.releases_created }}
+            tag: ${{ steps.release.outputs.tag_name }}
+        steps:
+            - uses: googleapis/release-please-action@v4
+              id: release
+              with:
+                  config-file: release-please-config.json
+                  manifest-file: .release-please-manifest.json
+
+            # release-please bumps `[workspace.package].version` but knows
+            # nothing about Cargo.lock, and every build runs `--locked`. Sync
+            # the lock on the release branch so the PR is buildable as-is.
+            - name: Check out release branch
+              if: steps.release.outputs.prs_created == 'true'
+              uses: actions/checkout@v7
+              with:
+                  ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+
+            - uses: actions-rust-lang/setup-rust-toolchain@v1
+              if: steps.release.outputs.prs_created == 'true'
+              with:
+                  toolchain: stable
+                  rustflags: ""
+
+            - name: Sync Cargo.lock with the release version
+              if: steps.release.outputs.prs_created == 'true'
+              run: |
+                  set -euo pipefail
+
+                  # `--workspace` touches member versions only: no dependency
+                  # updates sneak into the release PR.
+                  cargo update --workspace
+
+                  if git diff --quiet -- Cargo.lock; then
+                    echo "Cargo.lock already in sync"
+                    exit 0
+                  fi
+
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add Cargo.lock
+                  git commit -m "chore: sync Cargo.lock"
+                  git push
+
+    publish:
+        name: Build and publish binaries
+        needs: release-please
+        if: needs.release-please.outputs.released == 'true'
+        permissions:
+            contents: write
+            id-token: write
+            attestations: write
+        # Tags pushed by GITHUB_TOKEN do not trigger `push: tags` workflows, so
+        # the release workflow is called directly instead.
+        uses: ./.github/workflows/release.yml
+        with:
+            tag: ${{ needs.release-please.outputs.tag }}
+            publish: true
