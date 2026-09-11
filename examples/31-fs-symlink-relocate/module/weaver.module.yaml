@@ -1,0 +1,4 @@
+ensures:
+  - type: fs.symlink
+    src: "/tmp/wvr-examples/31-fs-symlink-relocate/rustup"
+    dst: "/tmp/wvr-examples/31-fs-symlink-relocate/vault/caches/rustup"

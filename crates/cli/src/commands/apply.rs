@@ -78,6 +78,9 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
     // Plugin resolver for module-declared ensures backed by WASM plugins.
     let mut plugin_resolver = PluginResolver::new(PathBuf::from("."))?;
     plugin_resolver.set_offline(args.offline);
+    // Honor `plugins:` overrides (path:/git:) for generic `type:` ensure
+    // dispatch, not just the `wvr plugins update/list/verify` subcommands.
+    plugin_resolver.set_plugins_config(config.plugins.clone());
 
     // Resolve declared secrets and expose them to templates under `secrets.*`.
     // The `env` provider reads env vars; other providers run as WASM plugins.

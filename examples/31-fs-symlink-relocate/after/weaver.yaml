@@ -1,0 +1,13 @@
+version: "1"
+plugins:
+  fs-symlink:
+    path: "../../../plugins/fs-symlink"
+modules:
+  - name: "relocate-base"
+    source: "../module"
+    ref: "v1"
+apps:
+  - name: "relocate-rustup"
+    module: "relocate-base"
+    path: "."
+    inputs: {}

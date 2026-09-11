@@ -60,3 +60,16 @@ examples:
       - type: file_contains
         path: "home/.tmux.conf"
         value: 'rw:section id="tmux-claude-rename"'
+  # `ensure.fs.symlink` via a module-scoped `type: fs.symlink` plugin ensure,
+  # resolved through the `plugins: fs-symlink: path: ...` override (see
+  # PluginResolver::resolve_ensure_type in crates/core/src/plugin/resolver.rs).
+  # Manually verified to converge for real with `wvr apply` run directly from
+  # this directory (relocates `src` to `dst`, symlinks it back, idempotent on
+  # re-run). Stays `pending` here only because this harness copies each
+  # example into an isolated tempdir (see `run_example`/`copy_dir` below),
+  # which breaks the `path: "../../../plugins/fs-symlink"` reference — it
+  # points outside the copied `examples/31-fs-symlink-relocate/` subtree, so
+  # `PluginSource::Local` can't find `plugin.wasm` under this harness. See
+  # examples/31-fs-symlink-relocate/README.md "Known limitations".
+  31-fs-symlink-relocate:
+    stage: pending
