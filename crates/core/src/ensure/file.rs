@@ -130,17 +130,40 @@ impl EnsureFileMdSection {
             Ok(self.content.clone().unwrap_or_default())
         }
     }
+
+    /// Compute the full desired file content by upserting the managed region
+    /// into `current`. Shared by `plan()` (diffed against the file on disk)
+    /// and `execute()` (written to disk), so the two can never drift apart.
+    fn desired_content(&self, ctx: &EnsureContext, current: &str) -> anyhow::Result<String> {
+        let content = self.resolved_content(ctx)?;
+        Ok(match &self.selector {
+            MdSelector::BlockMarker { id } => upsert_block_marker(current, id, &content),
+            MdSelector::Heading { path, depth } => upsert_heading(current, path, *depth, &content),
+        })
+    }
 }
 
 impl Ensure for EnsureFileMdSection {
-    fn plan(&self, _ctx: &EnsureContext) -> anyhow::Result<EnsurePlan> {
+    fn plan(&self, ctx: &EnsureContext) -> anyhow::Result<EnsurePlan> {
         let what = match &self.selector {
             MdSelector::BlockMarker { id } => format!("block '{id}'"),
             MdSelector::Heading { path, .. } => format!("heading '{}'", path.join(" > ")),
         };
+        let target = ctx.app_path.join(&self.file);
+        let current = match std::fs::read_to_string(&target) {
+            Ok(s) => s,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(anyhow::anyhow!("cannot read {}: {e}", target.display())),
+        };
+        let desired = self.desired_content(ctx, &current)?;
+        let actions = if desired == current {
+            vec![]
+        } else {
+            vec![format!("converge section in {}", self.file)]
+        };
         Ok(EnsurePlan {
             description: format!("Ensure {what} section in {}", self.file),
-            actions: vec![format!("converge section in {}", self.file)],
+            actions,
         })
     }
 
@@ -151,11 +174,7 @@ impl Ensure for EnsureFileMdSection {
         let target = ctx.app_path.join(&self.file);
         let current = std::fs::read_to_string(&target)
             .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", target.display()))?;
-        let content = self.resolved_content(ctx)?;
-        let updated = match &self.selector {
-            MdSelector::BlockMarker { id } => upsert_block_marker(&current, id, &content),
-            MdSelector::Heading { path, depth } => upsert_heading(&current, path, *depth, &content),
-        };
+        let updated = self.desired_content(ctx, &current)?;
         std::fs::write(&target, updated)?;
         Ok(())
     }
@@ -218,10 +237,18 @@ impl EnsureFileFromTemplate {
 }
 
 impl Ensure for EnsureFileFromTemplate {
-    fn plan(&self, _ctx: &EnsureContext) -> anyhow::Result<EnsurePlan> {
+    fn plan(&self, ctx: &EnsureContext) -> anyhow::Result<EnsurePlan> {
+        let rendered = self.render(ctx)?;
+        let target = ctx.app_path.join(&self.dest);
+        let current = std::fs::read(&target).ok();
+        let actions = if current.as_deref() == Some(rendered.as_bytes()) {
+            vec![]
+        } else {
+            vec![format!("write {}", self.dest)]
+        };
         Ok(EnsurePlan {
             description: format!("Render '{}' -> '{}'", self.template, self.dest),
-            actions: vec![format!("write {}", self.dest)],
+            actions,
         })
     }
 
@@ -320,6 +347,175 @@ mod tests {
         std::fs::write(&p, "user content").unwrap();
         e.execute(&ctx(dir.path().to_path_buf())).unwrap();
         assert_eq!(std::fs::read_to_string(&p).unwrap(), "user content");
+    }
+
+    #[test]
+    fn md_section_plan_reports_zero_actions_when_converged() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("AGENTS.md");
+        std::fs::write(
+            &file,
+            "# Title\n\nbody\n\n<!-- rw:section id=\"recent-changes\" -->\n- one\n<!-- rw:endsection id=\"recent-changes\" -->\n",
+        )
+        .unwrap();
+
+        let e = EnsureFileMdSection {
+            file: "AGENTS.md".into(),
+            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            content: Some("- one".into()),
+            content_from_template: None,
+        };
+        let plan = e.plan(&ctx(dir.path().to_path_buf())).unwrap();
+        assert!(plan.actions.is_empty(), "converged file must report zero actions, got {:?}", plan.actions);
+        assert!(!plan.description.is_empty());
+    }
+
+    #[test]
+    fn md_section_plan_reports_actions_when_drifted() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("AGENTS.md");
+        std::fs::write(
+            &file,
+            "# Title\n\nbody\n\n<!-- rw:section id=\"recent-changes\" -->\n- old\n<!-- rw:endsection id=\"recent-changes\" -->\n",
+        )
+        .unwrap();
+
+        let e = EnsureFileMdSection {
+            file: "AGENTS.md".into(),
+            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            content: Some("- new".into()),
+            content_from_template: None,
+        };
+        let plan = e.plan(&ctx(dir.path().to_path_buf())).unwrap();
+        assert!(!plan.actions.is_empty(), "drifted file must report a non-empty action list");
+    }
+
+    #[test]
+    fn md_section_plan_reports_actions_when_file_missing() {
+        let dir = tempdir().unwrap();
+        let e = EnsureFileMdSection {
+            file: "AGENTS.md".into(),
+            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            content: Some("- one".into()),
+            content_from_template: None,
+        };
+        let plan = e.plan(&ctx(dir.path().to_path_buf())).unwrap();
+        assert!(!plan.actions.is_empty(), "missing file must report a non-empty action list");
+    }
+
+    #[test]
+    fn md_section_plan_ignores_unowned_region_drift() {
+        // Managed region already matches, but bytes OUTSIDE the region differ
+        // from whatever they "should" be (e.g. a human edited the surrounding
+        // prose). We do not own that text, so plan() must still report zero
+        // actions.
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("AGENTS.md");
+        std::fs::write(
+            &file,
+            "# Title\n\nSome unrelated prose a human wrote by hand.\n\n<!-- rw:section id=\"recent-changes\" -->\n- one\n<!-- rw:endsection id=\"recent-changes\" -->\n\nMore unrelated prose.\n",
+        )
+        .unwrap();
+
+        let e = EnsureFileMdSection {
+            file: "AGENTS.md".into(),
+            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            content: Some("- one".into()),
+            content_from_template: None,
+        };
+        let plan = e.plan(&ctx(dir.path().to_path_buf())).unwrap();
+        assert!(
+            plan.actions.is_empty(),
+            "drift in non-owned bytes must not trigger a reported change, got {:?}",
+            plan.actions
+        );
+    }
+
+    #[test]
+    fn from_template_plan_reports_zero_actions_when_converged() {
+        let module = tempdir().unwrap();
+        let app = tempdir().unwrap();
+        std::fs::create_dir_all(module.path().join("templates")).unwrap();
+        std::fs::write(
+            module.path().join("templates/greeting.txt.j2"),
+            "Hello {{ project_name }}\n",
+        )
+        .unwrap();
+        std::fs::write(app.path().join("greeting.txt"), "Hello acme-api\n").unwrap();
+
+        let mut tc = tera::Context::new();
+        tc.insert("project_name", "acme-api");
+        let e = EnsureFileFromTemplate {
+            template: "templates/greeting.txt.j2".into(),
+            dest: "greeting.txt".into(),
+        };
+        let plan = e
+            .plan(&EnsureContext {
+                app_path: app.path().to_path_buf(),
+                dry_run: false,
+                module_path: module.path().to_path_buf(),
+                tera_context: tc,
+            })
+            .unwrap();
+        assert!(plan.actions.is_empty(), "converged file must report zero actions, got {:?}", plan.actions);
+        assert!(!plan.description.is_empty());
+    }
+
+    #[test]
+    fn from_template_plan_reports_actions_when_drifted() {
+        let module = tempdir().unwrap();
+        let app = tempdir().unwrap();
+        std::fs::create_dir_all(module.path().join("templates")).unwrap();
+        std::fs::write(
+            module.path().join("templates/greeting.txt.j2"),
+            "Hello {{ project_name }}\n",
+        )
+        .unwrap();
+        std::fs::write(app.path().join("greeting.txt"), "stale content\n").unwrap();
+
+        let mut tc = tera::Context::new();
+        tc.insert("project_name", "acme-api");
+        let e = EnsureFileFromTemplate {
+            template: "templates/greeting.txt.j2".into(),
+            dest: "greeting.txt".into(),
+        };
+        let plan = e
+            .plan(&EnsureContext {
+                app_path: app.path().to_path_buf(),
+                dry_run: false,
+                module_path: module.path().to_path_buf(),
+                tera_context: tc,
+            })
+            .unwrap();
+        assert!(!plan.actions.is_empty(), "drifted file must report a non-empty action list");
+    }
+
+    #[test]
+    fn from_template_plan_reports_actions_when_file_missing() {
+        let module = tempdir().unwrap();
+        let app = tempdir().unwrap();
+        std::fs::create_dir_all(module.path().join("templates")).unwrap();
+        std::fs::write(
+            module.path().join("templates/greeting.txt.j2"),
+            "Hello {{ project_name }}\n",
+        )
+        .unwrap();
+
+        let mut tc = tera::Context::new();
+        tc.insert("project_name", "acme-api");
+        let e = EnsureFileFromTemplate {
+            template: "templates/greeting.txt.j2".into(),
+            dest: "greeting.txt".into(),
+        };
+        let plan = e
+            .plan(&EnsureContext {
+                app_path: app.path().to_path_buf(),
+                dry_run: false,
+                module_path: module.path().to_path_buf(),
+                tera_context: tc,
+            })
+            .unwrap();
+        assert!(!plan.actions.is_empty(), "missing destination file must report a non-empty action list");
     }
 
     #[test]
