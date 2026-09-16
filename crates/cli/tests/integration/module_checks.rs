@@ -338,3 +338,83 @@ apps:
         "module should be resolved once, not once per app:\n{stdout}"
     );
 }
+
+/// A repo that DOES declare `modules:` but has an app referencing a name not
+/// among them (a typo) must fail the run, naming the app, the unknown
+/// module, and the declared names available -- silently running zero rules
+/// here is the worst possible outcome (requirements §6): the repo believes
+/// it adopted the standard and gets a green gate with nothing checked.
+#[test]
+fn typo_module_reference_with_modules_declared_fails_the_run() {
+    let ctx = TestContext::new();
+
+    // `modules:` is non-empty (declares "standards"), but the app
+    // references "standrds" -- a typo, not an absent declaration.
+    ctx.write_file(
+        "weaver.yaml",
+        r#"
+version: "1"
+modules:
+  - name: "standards"
+    source: "/tmp/does-not-matter-never-resolved"
+    ref: "v1"
+apps:
+  - name: "app"
+    module: "standrds"
+    path: "app"
+"#,
+    );
+    ctx.write_file("app/.gitkeep", "");
+
+    let assert =
+        cmd().arg("check").env("HOME", ctx.temp.path()).current_dir(&ctx.root).assert().failure();
+
+    let output = assert.get_output();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("app"), "app name missing from error:\n{stderr}");
+    assert!(stderr.contains("standrds"), "the typo'd module name missing from error:\n{stderr}");
+    assert!(
+        stderr.contains("standards"),
+        "the declared (available) module name missing from error:\n{stderr}"
+    );
+}
+
+/// A repo that declares NO modules at all, with an app whose `module:`
+/// therefore can't match anything, keeps today's tolerant behavior (this is
+/// what the pre-existing `check.rs` fixtures rely on) but warns on stderr so
+/// the mismatch is visible rather than silent.
+#[test]
+fn undeclared_module_with_no_modules_at_all_warns_but_still_runs_other_checks() {
+    let ctx = TestContext::new();
+
+    ctx.write_file(
+        "weaver.yaml",
+        r#"
+version: "1"
+apps:
+  - name: "app"
+    module: "standrds"
+    path: "app"
+    checks:
+      - id: app-rule
+        name: "App rule"
+        command: "exit 0"
+"#,
+    );
+
+    let assert =
+        cmd().arg("check").env("HOME", ctx.temp.path()).current_dir(&ctx.root).assert().success();
+
+    let output = assert.get_output();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // The app's own check still ran.
+    assert!(stdout.contains("app-rule"), "app-level check did not run:\n{stdout}");
+    assert!(stdout.contains("PASS"), "{stdout}");
+
+    // But the undeclared module reference is surfaced, not silent.
+    assert!(stderr.to_lowercase().contains("warning"), "no warning emitted:\n{stderr}");
+    assert!(stderr.contains("app"), "app name missing from warning:\n{stderr}");
+    assert!(stderr.contains("standrds"), "module name missing from warning:\n{stderr}");
+}

@@ -73,14 +73,39 @@ pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
             });
         }
 
-        // The app's module must be declared to inherit anything from it. An
-        // app whose `module:` doesn't match any `modules:` entry has nothing
-        // to resolve -- `wvr apply` already fails loudly on that config
-        // problem, so `check` just runs this app's own checks without it
-        // rather than treating an already-invalid config as a fresh error
-        // here too.
-        let Some(module_config) = config.modules.iter().find(|m| m.name == app.module) else {
-            continue;
+        // The app's module must be declared to inherit anything from it.
+        let module_config = match config.modules.iter().find(|m| m.name == app.module) {
+            Some(m) => m,
+            None if config.modules.is_empty() => {
+                // No `modules:` block at all: there is genuinely nothing in
+                // this workspace to inherit checks from (a bare `check.command`
+                // fixture, or a workspace that hasn't adopted any module
+                // yet), so this is not a rule silently failing to run --
+                // there was never a rule. Still warn, so a real typo in
+                // `module:` is visible rather than silent, and keep going
+                // (this is what the pre-existing check fixtures rely on).
+                eprintln!(
+                    "Warning: app '{}' references module '{}', but weaver.yaml declares no modules at all -- skipping module-inherited checks for this app.",
+                    app.name, app.module
+                );
+                continue;
+            }
+            None => {
+                // `modules:` IS declared, but `app.module` doesn't match any
+                // entry -- this is a typo, not an absence, and it means a
+                // module's rules silently never run while the report still
+                // looks green. That is the worst possible outcome here (no
+                // false green, requirements §6), so this is a hard error,
+                // not a skip.
+                let available: Vec<&str> = config.modules.iter().map(|m| m.name.as_str()).collect();
+                anyhow::bail!(
+                    "App '{}' references module '{}', which is not declared in weaver.yaml. \
+                     Declared modules: {}.",
+                    app.name,
+                    app.module,
+                    available.join(", "),
+                );
+            }
         };
 
         if !resolved_modules.contains_key(&module_config.name) {
@@ -121,7 +146,7 @@ pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
                 anyhow::bail!("App '{}' not found", target_app);
             }
         }
-        println!("No checks defined in weaver.yaml");
+        println!("No checks defined in weaver.yaml or any adopted module");
         return Ok(ExitCode::Success);
     }
 
