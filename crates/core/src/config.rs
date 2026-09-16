@@ -256,11 +256,20 @@ pub struct CheckDef {
     /// "any non-zero exit is a failure" behavior.
     #[serde(default)]
     pub expect: i32,
-    /// Substring that must appear in stdout (R20).
+    /// Substring that must appear in stdout (R20). Evaluated against stdout
+    /// with only its *trailing* newline(s) stripped (shell command
+    /// substitution semantics, like `$(...)`) -- leading and interior bytes,
+    /// including interior newlines, are left alone.
     #[serde(default)]
     pub stdout_contains: Option<String>,
-    /// Regex that must match stdout (R20). An invalid pattern is a
-    /// evaluation error (`Status::Error`), never a silent pass.
+    /// Regex that must match stdout (R20). An invalid pattern is an
+    /// evaluation error (`Status::Error`), never a silent pass. Evaluated
+    /// against stdout with only its *trailing* newline(s) stripped (like
+    /// `stdout_contains`), so a natural end-anchored pattern (e.g.
+    /// `^v\d+\.\d+\.\d+$`) matches output from commands like `echo`, which
+    /// always emit a trailing newline. `$`/`^` still only anchor at the
+    /// start/end of the whole (trimmed) string by default; opt into
+    /// per-line anchoring with `(?m)` if stdout can span multiple lines.
     #[serde(default)]
     pub stdout_matches: Option<String>,
     /// Timeout in seconds (R20). No timeout by default.

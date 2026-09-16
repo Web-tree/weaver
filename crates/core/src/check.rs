@@ -258,6 +258,52 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stdout_matches_end_anchor_passes_despite_shells_trailing_newline() {
+        // `echo` always emits a trailing `\n`. The natural end-anchored
+        // pattern for its output must still pass -- this is the exact shape
+        // of the reported defect.
+        let mut check = base_check("echo v1.2.3");
+        check.stdout_matches = Some(r"^v[0-9]+\.[0-9]+\.[0-9]+$".to_string());
+        let result = run_check(&check, Path::new(".")).await;
+        assert_eq!(result.status, Status::Pass, "observed: {}", result.observed);
+    }
+
+    #[tokio::test]
+    async fn failing_stdout_match_reports_the_exact_compared_value() {
+        let mut check = base_check("echo v1.2.3");
+        check.stdout_matches = Some(r"^v9\.9\.9$".to_string());
+        let result = run_check(&check, Path::new(".")).await;
+        assert_eq!(result.status, Status::Fail);
+        // The diagnostic must show precisely what was compared against the
+        // pattern -- never a value the comparison itself disagrees with.
+        assert!(result.observed.contains("v1.2.3"), "observed: {}", result.observed);
+        assert!(
+            !result.observed.contains("v1.2.3\n"),
+            "observed retained the trailing newline that was stripped before matching: {}",
+            result.observed
+        );
+    }
+
+    #[tokio::test]
+    async fn stdout_matches_preserves_interior_newlines_for_multiline_mode() {
+        // Only the *trailing* newline is stripped -- interior newlines must
+        // survive so `(?m)` line-anchoring still works, i.e. this is not a
+        // general whitespace strip.
+        let mut check = base_check("printf 'line1\\nline2\\n'");
+        check.stdout_matches = Some(r"(?m)^line2$".to_string());
+        let result = run_check(&check, Path::new(".")).await;
+        assert_eq!(result.status, Status::Pass, "observed: {}", result.observed);
+    }
+
+    #[tokio::test]
+    async fn stdout_contains_preserves_interior_newlines() {
+        let mut check = base_check("printf 'line1\\nline2\\n'");
+        check.stdout_contains = Some("line1\nline2".to_string());
+        let result = run_check(&check, Path::new(".")).await;
+        assert_eq!(result.status, Status::Pass, "observed: {}", result.observed);
+    }
+
+    #[tokio::test]
     async fn stdout_matches_invalid_regex_errors_not_passes() {
         let mut check = base_check("echo hello");
         check.stdout_matches = Some("(unclosed".to_string());
