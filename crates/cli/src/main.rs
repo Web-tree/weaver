@@ -134,10 +134,7 @@ async fn dispatch(command: Option<Commands>) -> anyhow::Result<ExitCode> {
             commands::module::execute(args)?;
             ExitCode::Success
         }
-        Some(Commands::Check(args)) => {
-            commands::check::execute(args)?;
-            ExitCode::Success
-        }
+        Some(Commands::Check(args)) => commands::check::execute(args).await?,
         Some(Commands::Plugins(args)) => {
             commands::plugins::execute(args).await?;
             ExitCode::Success

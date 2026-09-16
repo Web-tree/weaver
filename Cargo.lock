@@ -3956,6 +3956,7 @@ dependencies = [
  "flate2",
  "glob",
  "home",
+ "regex",
  "reqwest",
  "semver",
  "serde",

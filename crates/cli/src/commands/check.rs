@@ -1,9 +1,10 @@
+use crate::exit::ExitCode;
 use clap::Args;
 use comfy_table::Table;
 use console::style;
-use weaver_core::config::{CheckDef, WeaverConfig};
 use std::path::Path;
-use std::process::Command;
+use weaver_core::check::{CheckResult, Status, run_check};
+use weaver_core::config::{CheckDef, Severity, WeaverConfig};
 
 #[derive(Args)]
 pub struct CheckArgs {
@@ -11,7 +12,7 @@ pub struct CheckArgs {
     pub app: Option<String>,
 }
 
-pub fn execute(args: CheckArgs) -> anyhow::Result<()> {
+pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
     let config = WeaverConfig::load(Path::new("weaver.yaml"))?;
 
     // Collect all checks to run
@@ -55,62 +56,76 @@ pub fn execute(args: CheckArgs) -> anyhow::Result<()> {
             }
         }
         println!("No checks defined in weaver.yaml");
-        return Ok(());
+        return Ok(ExitCode::Success);
     }
 
     println!("Running {} checks...", tasks.len());
 
-    let mut failures = 0;
-    let mut table = Table::new();
-    table.set_header(vec!["Context", "Check", "Status", "Message"]);
+    // `cwd` on a check is resolved relative to the repo root, which today is
+    // always the directory `weaver.yaml` was loaded from (cwd itself, since
+    // the path above is relative -- see R27's not-yet-built `-C`/`--repo`).
+    let repo_root = Path::new(".");
 
-    for (context, check) in tasks {
-        match run_check_command(&check.command) {
-            Ok(_) => {
-                table.add_row(vec![
-                    &context,
-                    &check.name,
-                    &style("PASS").green().to_string(),
-                    "",
-                ]);
-            }
-            Err(e) => {
-                failures += 1;
-                table.add_row(vec![
-                    &context,
-                    &check.name,
-                    &style("FAIL").red().to_string(),
-                    &e.to_string(),
-                ]);
+    let mut results: Vec<(String, CheckResult)> = Vec::with_capacity(tasks.len());
+    for (context, check) in &tasks {
+        let result = run_check(check, repo_root).await;
+        results.push((context.clone(), result));
+    }
+
+    let mut table = Table::new();
+    table.set_header(vec!["Context", "Check", "Severity", "Status", "Message"]);
+
+    // R23: the exit code derives from severity -- only `error`-severity
+    // checks that didn't pass fail the gate. `warn`/`info` are still shown
+    // as not-passing, but never flip the exit code.
+    let mut gate_failures = 0;
+    let mut other_failures = 0;
+
+    for (context, result) in &results {
+        let status_cell = match result.status {
+            Status::Pass => style("PASS").green().to_string(),
+            Status::Fail => style("FAIL").red().to_string(),
+            Status::Error => style("ERROR").red().bold().to_string(),
+        };
+
+        if result.status != Status::Pass {
+            if result.severity == Severity::Error {
+                gate_failures += 1;
+            } else {
+                other_failures += 1;
             }
         }
+
+        table.add_row(vec![
+            context.as_str(),
+            &result.name,
+            severity_label(result.severity),
+            &status_cell,
+            &result.observed,
+        ]);
     }
 
     println!("{table}");
 
-    if failures > 0 {
-        anyhow::bail!("{} checks failed", failures);
+    if gate_failures > 0 {
+        eprintln!("{} error-severity check(s) failed", gate_failures);
+        if other_failures > 0 {
+            eprintln!("({} warn/info check(s) also did not pass)", other_failures);
+        }
+        return Ok(ExitCode::Violations);
     }
 
-    Ok(())
+    if other_failures > 0 {
+        eprintln!("{} warn/info check(s) did not pass (not failing the gate)", other_failures);
+    }
+
+    Ok(ExitCode::Success)
 }
 
-fn run_check_command(command: &str) -> anyhow::Result<()> {
-    let output = Command::new("sh").arg("-c").arg(command).output()?;
-
-    if output.status.success() {
-        Ok(())
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        // Combine output for error message
-        let msg = if !stderr.trim().is_empty() {
-            stderr.trim().to_string()
-        } else if !stdout.trim().is_empty() {
-            stdout.trim().to_string()
-        } else {
-            format!("Exit code {}", output.status)
-        };
-        anyhow::bail!("{}", msg);
+fn severity_label(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Error => "error",
+        Severity::Warn => "warn",
+        Severity::Info => "info",
     }
 }

@@ -25,6 +25,7 @@ chrono = "0.4.38"
 flate2.workspace = true
 semver.workspace = true
 tar.workspace = true
+regex.workspace = true
 weaver-ops.workspace = true
 
 [dev-dependencies]
