@@ -47,6 +47,16 @@ fn heading_level(line: &str) -> Option<usize> {
     }
 }
 
+/// True if `line` opens a `block_marker` managed region
+/// (`<!-- rw:section id="..." -->`). A heading-selected region must not run
+/// across such a boundary — the block-marker region belongs to a different
+/// ensure and must be preserved, not swallowed as "content under this
+/// heading".
+fn is_block_marker_start(line: &str) -> bool {
+    let line = line.trim_end();
+    line.starts_with("<!-- rw:section id=\"") && line.ends_with("\" -->")
+}
+
 /// Insert or replace the body under a heading. `path`'s last element is the
 /// heading title rendered at `depth` (`#`*depth). The managed region runs from
 /// the heading line to the line before the next heading of level <= depth (or
@@ -75,9 +85,8 @@ pub(crate) fn upsert_heading(input: &str, path: &[String], depth: usize, content
     if let Some(start) = start_idx {
         let mut end = lines.len();
         for (i, line) in lines.iter().enumerate().skip(start + 1) {
-            if let Some(l) = heading_level(line)
-                && l <= depth
-            {
+            let is_sibling_heading = heading_level(line).is_some_and(|l| l <= depth);
+            if is_sibling_heading || is_block_marker_start(line) {
                 end = i;
                 break;
             }
@@ -326,6 +335,34 @@ mod tests {
         let input = "## Skills\n\nold\n\n## Other\n\nleave\n";
         let out = super::upsert_heading(input, &["Skills".to_string()], 2, "new");
         assert_eq!(out, "## Skills\n\nnew\n\n## Other\n\nleave\n");
+    }
+
+    #[test]
+    fn heading_section_does_not_consume_a_following_block_marker_region() {
+        // A heading region with no following sibling heading must still stop
+        // at a `rw:section` block-marker boundary rather than running to EOF
+        // and swallowing another ensure's managed region.
+        let input = concat!(
+            "## Skills\n\n",
+            "old skills body\n\n",
+            "### Invocation order\n\n",
+            "1. one\n",
+            "2. two\n\n",
+            "<!-- rw:section id=\"recent-changes\" -->\n",
+            "- kept change\n",
+            "<!-- rw:endsection id=\"recent-changes\" -->\n",
+        );
+        let out = super::upsert_heading(input, &["Skills".to_string()], 2, "new skills body\n\n### Invocation order\n\n1. one\n2. two");
+
+        assert!(
+            out.contains("<!-- rw:section id=\"recent-changes\" -->\n- kept change\n<!-- rw:endsection id=\"recent-changes\" -->"),
+            "block-marker region must survive a heading upsert with no following heading, got:\n{out}"
+        );
+        assert_eq!(
+            out.matches("<!-- rw:section id=\"recent-changes\" -->").count(),
+            1,
+            "block-marker region must not be duplicated"
+        );
     }
 
     fn ctx(app: PathBuf) -> EnsureContext {
