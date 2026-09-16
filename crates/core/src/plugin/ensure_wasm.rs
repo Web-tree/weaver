@@ -115,7 +115,12 @@ impl EnsurePluginEngine {
     }
 
     pub fn load_plugin(&self, wasm_path: &Path) -> anyhow::Result<LoadedEnsurePlugin> {
-        let component = Component::from_file(&self.engine, wasm_path)?;
+        let component = Component::from_file(&self.engine, wasm_path).map_err(|e| {
+            super::PluginError::InvalidWasm {
+                path: wasm_path.display().to_string(),
+                source: e.into(),
+            }
+        })?;
         Ok(LoadedEnsurePlugin {
             engine: self.engine.clone(),
             linker: self.linker.clone(),
@@ -149,7 +154,12 @@ impl LoadedEnsurePlugin {
         bindings
             .weaver_plugin_ensures()
             .call_plan(&mut store, &req)?
-            .map_err(|e| anyhow::anyhow!("Plugin plan error: {:?}", e))
+            .map_err(|e| {
+                anyhow::Error::new(super::PluginError::Other(anyhow::anyhow!(
+                    "Plugin plan error: {:?}",
+                    e
+                )))
+            })
     }
 
     pub fn execute(
@@ -170,6 +180,11 @@ impl LoadedEnsurePlugin {
         bindings
             .weaver_plugin_ensures()
             .call_execute(&mut store, &req)?
-            .map_err(|e| anyhow::anyhow!("Plugin execute error: {:?}", e))
+            .map_err(|e| {
+                anyhow::Error::new(super::PluginError::Other(anyhow::anyhow!(
+                    "Plugin execute error: {:?}",
+                    e
+                )))
+            })
     }
 }

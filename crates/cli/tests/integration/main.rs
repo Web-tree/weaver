@@ -1,6 +1,7 @@
 mod add_module;
 mod apply;
 mod check;
+mod check_json;
 pub mod common;
 mod describe;
 mod examples;
@@ -8,6 +9,8 @@ mod includes;
 mod k3s_nebula;
 mod list;
 mod module;
+mod module_checks;
 mod naming;
+mod plan;
 mod self_update;
 mod update;

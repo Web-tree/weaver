@@ -223,11 +223,64 @@ fn default_heading_depth() -> usize {
     2
 }
 
+/// A rule's severity (R23): only `Error` fails the gate (`wvr check`'s exit
+/// code derives from severity), `Warn` and `Info` are reported but never
+/// change the exit code. Without warn-level rules every new standard would be
+/// a breaking CI change for every repo, so the standard stops being
+/// adoptable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Severity {
+    #[default]
+    Error,
+    Warn,
+    Info,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckDef {
     pub name: String,
     pub command: String,
+    #[serde(default)]
     pub description: Option<String>,
+    /// Stable rule id (R3), independent of `name`, so waivers/history survive
+    /// a rename. Falls back to `name` when unset (legacy configs).
+    #[serde(default)]
+    pub id: Option<String>,
+    /// R23: `error` | `warn` | `info`, defaulting to `error` so legacy
+    /// three-field checks (`name`/`command`/`description`) behave exactly as
+    /// before.
+    #[serde(default)]
+    pub severity: Severity,
+    /// Expected exit code (R20). Defaults to `0`, matching today's
+    /// "any non-zero exit is a failure" behavior.
+    #[serde(default)]
+    pub expect: i32,
+    /// Substring that must appear in stdout (R20). Evaluated against stdout
+    /// with only its *trailing* newline(s) stripped (shell command
+    /// substitution semantics, like `$(...)`) -- leading and interior bytes,
+    /// including interior newlines, are left alone.
+    #[serde(default)]
+    pub stdout_contains: Option<String>,
+    /// Regex that must match stdout (R20). An invalid pattern is an
+    /// evaluation error (`Status::Error`), never a silent pass. Evaluated
+    /// against stdout with only its *trailing* newline(s) stripped (like
+    /// `stdout_contains`), so a natural end-anchored pattern (e.g.
+    /// `^v\d+\.\d+\.\d+$`) matches output from commands like `echo`, which
+    /// always emit a trailing newline. `$`/`^` still only anchor at the
+    /// start/end of the whole (trimmed) string by default; opt into
+    /// per-line anchoring with `(?m)` if stdout can span multiple lines.
+    #[serde(default)]
+    pub stdout_matches: Option<String>,
+    /// Timeout in seconds (R20). No timeout by default.
+    #[serde(default)]
+    pub timeout: Option<u64>,
+    /// Working directory, relative to the repo root (R20).
+    #[serde(default)]
+    pub cwd: Option<String>,
+    /// Human-readable "how to fix this" string (spec 004 FR-024).
+    #[serde(default)]
+    pub remediate: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -246,6 +299,13 @@ pub struct ModuleManifest {
     pub tasks: HashMap<String, TaskDef>,
     #[serde(default)]
     pub ensures: Vec<EnsureEntry>,
+    /// Rules the module authors so every consuming repo shares one source of
+    /// truth (R1, `docs/dev-standards-module-handoff.md`). Reuses `CheckDef`
+    /// exactly -- a module-authored check and a repo-authored one are the
+    /// same rule type, `wvr check` just runs them from different sources
+    /// (see `CheckSource` in `crate::check`).
+    #[serde(default)]
+    pub checks: Vec<CheckDef>,
 }
 
 /// A single `ensures:` entry in a module manifest.
@@ -368,6 +428,52 @@ inputs:
         let manifest = ModuleManifest::load(&path).unwrap();
         assert_eq!(manifest.inputs.len(), 1);
         assert!(manifest.inputs.contains_key("region"));
+    }
+
+    /// A manifest with no `checks:` key still loads (backward compatibility)
+    /// -- modules written before R1 must not fail to parse.
+    #[test]
+    fn module_manifest_without_checks_key_still_loads() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("weaver.module.yaml");
+        fs::write(
+            &path,
+            r#"
+inputs:
+  region:
+    type: string
+    required: true
+"#,
+        )
+        .unwrap();
+
+        let manifest = ModuleManifest::load(&path).unwrap();
+        assert!(manifest.checks.is_empty());
+    }
+
+    /// R1: a module manifest can declare `checks:`, reusing `CheckDef`
+    /// exactly.
+    #[test]
+    fn module_manifest_loads_checks() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("weaver.module.yaml");
+        fs::write(
+            &path,
+            r#"
+inputs: {}
+checks:
+  - id: no-todo
+    name: "No TODO markers"
+    command: "! grep -r TODO ."
+    severity: error
+"#,
+        )
+        .unwrap();
+
+        let manifest = ModuleManifest::load(&path).unwrap();
+        assert_eq!(manifest.checks.len(), 1);
+        assert_eq!(manifest.checks[0].id.as_deref(), Some("no-todo"));
+        assert_eq!(manifest.checks[0].command, "! grep -r TODO .");
     }
 
     #[test]
@@ -545,6 +651,57 @@ apps:
             }
             other => panic!("expected typed GitSubmodule, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn check_def_legacy_three_fields_default_severity_and_expect() {
+        let yaml = "name: lint\ncommand: cargo clippy\ndescription: run clippy\n";
+        let check: CheckDef = serde_yml::from_str(yaml).unwrap();
+        assert_eq!(check.name, "lint");
+        assert_eq!(check.command, "cargo clippy");
+        assert_eq!(check.description.as_deref(), Some("run clippy"));
+        assert_eq!(check.id, None);
+        assert_eq!(check.severity, Severity::Error);
+        assert_eq!(check.expect, 0);
+        assert_eq!(check.stdout_contains, None);
+        assert_eq!(check.stdout_matches, None);
+        assert_eq!(check.timeout, None);
+        assert_eq!(check.cwd, None);
+        assert_eq!(check.remediate, None);
+    }
+
+    #[test]
+    fn check_def_two_field_legacy_still_parses() {
+        // Some existing fixtures omit `description` entirely.
+        let yaml = "name: lint\ncommand: cargo clippy\n";
+        let check: CheckDef = serde_yml::from_str(yaml).unwrap();
+        assert_eq!(check.description, None);
+        assert_eq!(check.severity, Severity::Error);
+    }
+
+    #[test]
+    fn check_def_new_fields_parse() {
+        let yaml = r#"
+name: lint
+id: rule.lint
+command: cargo clippy
+severity: warn
+expect: 1
+stdout_contains: "warning"
+stdout_matches: "^warning:"
+timeout: 30
+cwd: "subdir"
+remediate: "run `cargo clippy --fix`"
+"#;
+        let check: CheckDef = serde_yml::from_str(yaml).unwrap();
+        assert_eq!(check.id.as_deref(), Some("rule.lint"));
+        assert_eq!(check.severity, Severity::Warn);
+        assert_eq!(check.expect, 1);
+        assert_eq!(check.stdout_contains.as_deref(), Some("warning"));
+        assert_eq!(check.stdout_matches.as_deref(), Some("^warning:"));
+        assert_eq!(check.timeout, Some(30));
+        assert_eq!(check.cwd.as_deref(), Some("subdir"));
+        assert_eq!(check.remediate.as_deref(), Some("run `cargo clippy --fix`"));
     }
 
     #[test]

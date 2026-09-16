@@ -15,7 +15,7 @@ pub struct PlanArgs {
     pub out: Option<PathBuf>,
 }
 
-pub async fn run(args: PlanArgs) -> anyhow::Result<()> {
+pub async fn run(args: PlanArgs) -> anyhow::Result<crate::exit::ExitCode> {
     info!("Running plan...");
 
     let apply_args = crate::commands::apply::ApplyArgs {
@@ -28,7 +28,7 @@ pub async fn run(args: PlanArgs) -> anyhow::Result<()> {
     let change_count = crate::commands::apply::execute(apply_args, true).await?;
 
     if args.detailed_exitcode && change_count > 0 {
-        std::process::exit(2);
+        return Ok(crate::exit::ExitCode::Violations);
     }
-    Ok(())
+    Ok(crate::exit::ExitCode::Success)
 }

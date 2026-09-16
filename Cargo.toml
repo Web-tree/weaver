@@ -49,6 +49,7 @@ walkdir = "2.4.0"
 flate2 = "1.1"
 semver = "1.0"
 tar = "0.4"
+regex = "1.11"
 weaver-core = { path = "crates/core" }
 weaver-ops = { path = "crates/ops" }
 weaver-test-support = { path = "crates/test-support" }

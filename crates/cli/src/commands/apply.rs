@@ -175,12 +175,26 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
 
                     // Write File
                     if dry_run {
-                        planned_changes.push(weaver_core::plan::PlannedChange {
-                            action: "create".into(),
-                            path: dest_path.display().to_string(),
-                            preview: None,
-                        });
-                        info!("Would copy {:?} to {:?}", entry.path(), dest_path);
+                        // Only report a change when the destination would
+                        // actually differ from the source: missing, or bytes
+                        // don't match. Comparing against actual content (not
+                        // just the recorded state checksum) is what makes a
+                        // second `plan` after `apply` report zero changes.
+                        let would_change = match std::fs::read(&dest_path) {
+                            Ok(current_bytes) => {
+                                let src_bytes = std::fs::read(entry.path())?;
+                                current_bytes != src_bytes
+                            }
+                            Err(_) => true,
+                        };
+                        if would_change {
+                            planned_changes.push(weaver_core::plan::PlannedChange {
+                                action: "create".into(),
+                                path: dest_path.display().to_string(),
+                                preview: None,
+                            });
+                            info!("Would copy {:?} to {:?}", entry.path(), dest_path);
+                        }
                     } else {
                         Engine::ensure_file_copy(entry.path(), &dest_path)?;
 
@@ -240,12 +254,22 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
                     }
 
                     if dry_run {
-                        planned_changes.push(weaver_core::plan::PlannedChange {
-                            action: "create".into(),
-                            path: dest_path.display().to_string(),
-                            preview: None,
-                        });
-                        info!("Would render {:?} to {:?}", entry.path(), dest_path);
+                        // Same "would actually change" comparison as the
+                        // files/ walk above, but against the rendered output
+                        // rather than raw source bytes.
+                        let rendered = template_engine.render(&content, &context)?;
+                        let would_change = match std::fs::read(&dest_path) {
+                            Ok(current_bytes) => current_bytes != rendered.as_bytes(),
+                            Err(_) => true,
+                        };
+                        if would_change {
+                            planned_changes.push(weaver_core::plan::PlannedChange {
+                                action: "create".into(),
+                                path: dest_path.display().to_string(),
+                                preview: None,
+                            });
+                            info!("Would render {:?} to {:?}", entry.path(), dest_path);
+                        }
                     } else {
                         let rendered = template_engine.render(&content, &context)?;
                         if let Some(parent) = dest_path.parent() {
