@@ -69,8 +69,11 @@ apps:
     let mut cmd = cmd();
     let assert = cmd.arg("plan").current_dir(&ctx.root).assert();
 
+    // "Processing app: ..." is a tracing `info!` line, which is routed to
+    // stderr (not stdout) so that a command's real stdout payload -- a
+    // table, a plan, a `--json` report -- stays pipeable and uncorrupted.
     assert
         .success()
-        .stdout(predicate::str::contains("Processing app: app1"))
-        .stdout(predicate::str::contains("Processing app: app2"));
+        .stderr(predicate::str::contains("Processing app: app1"))
+        .stderr(predicate::str::contains("Processing app: app2"));
 }

@@ -93,12 +93,14 @@ apps:
     // 2. Execution (wvr apply)
     // We expect this to execute successfully and create files
     let mut cmd = Command::cargo_bin("wvr")?;
+    // "Apply complete." is a tracing `info!` line, which is routed to
+    // stderr (not stdout) so a command's real stdout payload stays pipeable.
     cmd.current_dir(root)
         .arg("apply")
         .arg("--auto-approve")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Apply complete"));
+        .stderr(predicate::str::contains("Apply complete"));
 
     // 3. Verification
     let app_dir = root.join("apps/my-cluster");

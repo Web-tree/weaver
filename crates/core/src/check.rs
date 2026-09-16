@@ -20,7 +20,8 @@ use std::path::Path;
 use std::time::Duration;
 
 /// The outcome of evaluating a single check.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Status {
     /// Exit code matched `expect`, and `stdout_contains`/`stdout_matches`
     /// (when set) were both satisfied.

@@ -1,6 +1,7 @@
 mod add_module;
 mod apply;
 mod check;
+mod check_json;
 pub mod common;
 mod describe;
 mod examples;

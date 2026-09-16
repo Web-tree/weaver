@@ -2,6 +2,7 @@ use crate::exit::ExitCode;
 use clap::Args;
 use comfy_table::Table;
 use console::style;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use weaver_core::check::{CheckResult, CheckSource, Status, run_check};
@@ -23,7 +24,53 @@ struct Task {
     repo_root: PathBuf,
 }
 
-pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
+/// `wvr check --json`'s report (R22). `version` lets a future change to this
+/// shape be detected by consumers instead of guessed at.
+#[derive(Serialize)]
+struct JsonReport<'a> {
+    version: u32,
+    summary: JsonSummary,
+    results: Vec<JsonCheckResult<'a>>,
+}
+
+#[derive(Serialize, Default)]
+struct JsonSummary {
+    total: usize,
+    pass: usize,
+    fail: usize,
+    error: usize,
+    /// How many of the above are `error`-severity and did not pass -- the
+    /// count the exit code (R24: `2` on any gate failure) derives from.
+    gate_failures: usize,
+}
+
+/// One rule's outcome, shaped directly off [`CheckResult`] plus the pieces
+/// R22 names that don't live there: the evaluated target path, and
+/// `profile`.
+///
+/// `profile` is R6 (a later slice) and doesn't exist yet in this codebase --
+/// rather than omit the key (which would make a consumer's schema differ
+/// between "no profiles configured" and "profiles not implemented"), it is
+/// always emitted as an explicit JSON `null`, so the key is stable across
+/// this slice and the one that gives it real values.
+#[derive(Serialize)]
+struct JsonCheckResult<'a> {
+    id: &'a str,
+    qualified_id: &'a str,
+    name: &'a str,
+    severity: Severity,
+    status: Status,
+    source: &'a CheckSource,
+    /// The filesystem path (relative to cwd) the check actually ran
+    /// against -- R22's "target path(s)".
+    target: String,
+    profile: Option<String>,
+    observed: &'a str,
+    expected: &'a str,
+    remediate: Option<&'a str>,
+}
+
+pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
     let config = WeaverConfig::load(Path::new("weaver.yaml"))?;
 
     // `check` is strictly read-only and must not require the network once a
@@ -110,10 +157,16 @@ pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
 
         if !resolved_modules.contains_key(&module_config.name) {
             let (module_path, resolved_commit) = resolve_module_for_check(&mut resolver, module_config)?;
-            println!(
-                "Module '{}' resolved to {} @ {}",
-                module_config.name, module_config.source, resolved_commit
-            );
+            // Under `--json`, stdout must carry the JSON report and nothing
+            // else (R22) -- this line is presentation, not the report
+            // itself (the resolved commit is already on every module
+            // check's `source` in the report).
+            if !json {
+                println!(
+                    "Module '{}' resolved to {} @ {}",
+                    module_config.name, module_config.source, resolved_commit
+                );
+            }
             let manifest = ModuleManifest::load(&module_path.join("weaver.module.yaml"))?;
             resolved_modules.insert(module_config.name.clone(), (resolved_commit, manifest));
         }
@@ -146,11 +199,17 @@ pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
                 anyhow::bail!("App '{}' not found", target_app);
             }
         }
-        println!("No checks defined in weaver.yaml or any adopted module");
+        if json {
+            print_json_report(&[], &[]);
+        } else {
+            println!("No checks defined in weaver.yaml or any adopted module");
+        }
         return Ok(ExitCode::Success);
     }
 
-    println!("Running {} checks...", tasks.len());
+    if !json {
+        println!("Running {} checks...", tasks.len());
+    }
 
     let mut results: Vec<CheckResult> = Vec::with_capacity(tasks.len());
     for task in &tasks {
@@ -158,22 +217,13 @@ pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
         results.push(result);
     }
 
-    let mut table = Table::new();
-    table.set_header(vec!["Context", "Check", "Rule ID", "Severity", "Status", "Message"]);
-
     // R23: the exit code derives from severity -- only `error`-severity
     // checks that didn't pass fail the gate. `warn`/`info` are still shown
-    // as not-passing, but never flip the exit code.
+    // as not-passing, but never flip the exit code. Computed once and shared
+    // by both the table and the JSON report so the two can never disagree.
     let mut gate_failures = 0;
     let mut other_failures = 0;
-
     for result in &results {
-        let status_cell = match result.status {
-            Status::Pass => style("PASS").green().to_string(),
-            Status::Fail => style("FAIL").red().to_string(),
-            Status::Error => style("ERROR").red().bold().to_string(),
-        };
-
         if result.status != Status::Pass {
             if result.severity == Severity::Error {
                 gate_failures += 1;
@@ -181,19 +231,13 @@ pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
                 other_failures += 1;
             }
         }
-
-        let context = result.source.context_label();
-        table.add_row(vec![
-            context.as_str(),
-            &result.name,
-            &result.qualified_id,
-            severity_label(result.severity),
-            &status_cell,
-            &result.observed,
-        ]);
     }
 
-    println!("{table}");
+    if json {
+        print_json_report(&tasks, &results);
+    } else {
+        print_table(&results);
+    }
 
     if gate_failures > 0 {
         eprintln!("{} error-severity check(s) failed", gate_failures);
@@ -208,6 +252,77 @@ pub async fn execute(args: CheckArgs) -> anyhow::Result<ExitCode> {
     }
 
     Ok(ExitCode::Success)
+}
+
+/// Render the human-readable `comfy_table` report to stdout, exactly as
+/// before `--json` existed.
+fn print_table(results: &[CheckResult]) {
+    let mut table = Table::new();
+    table.set_header(vec!["Context", "Check", "Rule ID", "Severity", "Status", "Message"]);
+
+    for result in results {
+        let status_cell = match result.status {
+            Status::Pass => style("PASS").green().to_string(),
+            Status::Fail => style("FAIL").red().to_string(),
+            Status::Error => style("ERROR").red().bold().to_string(),
+        };
+
+        let context = result.source.context_label();
+        table.add_row(vec![
+            context.as_str(),
+            &result.name,
+            &result.qualified_id,
+            severity_label(result.severity),
+            &status_cell,
+            &result.observed,
+        ]);
+    }
+
+    println!("{table}");
+}
+
+/// Emit the `--json` report (R22) as a single JSON document on stdout, and
+/// nothing else -- see this module's and `logging.rs`'s docs for how stdout
+/// purity is guaranteed. `tasks` and `results` are index-aligned: both are
+/// built by appending to the same list, one entry per check, in the same
+/// order.
+fn print_json_report(tasks: &[Task], results: &[CheckResult]) {
+    debug_assert_eq!(tasks.len(), results.len());
+
+    let mut summary = JsonSummary::default();
+    let mut json_results = Vec::with_capacity(results.len());
+
+    for (task, result) in tasks.iter().zip(results.iter()) {
+        summary.total += 1;
+        match result.status {
+            Status::Pass => summary.pass += 1,
+            Status::Fail => summary.fail += 1,
+            Status::Error => summary.error += 1,
+        }
+        if result.status != Status::Pass && result.severity == Severity::Error {
+            summary.gate_failures += 1;
+        }
+
+        json_results.push(JsonCheckResult {
+            id: &result.id,
+            qualified_id: &result.qualified_id,
+            name: &result.name,
+            severity: result.severity,
+            status: result.status,
+            source: &result.source,
+            target: task.repo_root.display().to_string(),
+            profile: None,
+            observed: &result.observed,
+            expected: &result.expected,
+            remediate: result.remediate.as_deref(),
+        });
+    }
+
+    let report = JsonReport { version: 1, summary, results: json_results };
+    // `serde_json::to_string` cannot fail for these plain-data types (no
+    // maps with non-string keys, no `f32`/`f64` NaN/inf); `expect` documents
+    // that rather than threading a spurious `Result` through a print path.
+    println!("{}", serde_json::to_string(&report).expect("JsonReport always serializes"));
 }
 
 /// Resolve a module for `check`, preferring the lockfile's pin and the

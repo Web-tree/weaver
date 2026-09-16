@@ -95,7 +95,7 @@ async fn run() -> ExitCode {
         _ => Some(update_notice::start(!cli.quiet && !cli.json)),
     };
 
-    let result = dispatch(cli.command).await;
+    let result = dispatch(cli.command, cli.json).await;
 
     if let Some(watch) = update_watch {
         watch.finish().await;
@@ -107,7 +107,7 @@ async fn run() -> ExitCode {
     exit::exit_code_for_result(&result)
 }
 
-async fn dispatch(command: Option<Commands>) -> anyhow::Result<ExitCode> {
+async fn dispatch(command: Option<Commands>, json: bool) -> anyhow::Result<ExitCode> {
     let code = match command {
         Some(Commands::Init(args)) => {
             init::run(args)?;
@@ -134,7 +134,7 @@ async fn dispatch(command: Option<Commands>) -> anyhow::Result<ExitCode> {
             commands::module::execute(args)?;
             ExitCode::Success
         }
-        Some(Commands::Check(args)) => commands::check::execute(args).await?,
+        Some(Commands::Check(args)) => commands::check::execute(args, json).await?,
         Some(Commands::Plugins(args)) => {
             commands::plugins::execute(args).await?;
             ExitCode::Success
