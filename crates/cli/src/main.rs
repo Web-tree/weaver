@@ -1,9 +1,11 @@
 mod commands;
+mod exit;
 mod prompts;
 mod update_notice;
 
 use clap::{CommandFactory, Parser};
 use commands::{apply, describe, init, list, plan};
+use exit::ExitCode;
 use weaver_core::{LoggingOptions, setup_tracing_with_options};
 
 #[derive(Parser)]
@@ -51,7 +53,22 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
+    let code = run().await;
+
+    // `std::process::exit` skips destructors and any buffering the normal
+    // return-from-main path would flush for us, so do it ourselves first.
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    let _ = std::io::stderr().flush();
+
+    std::process::exit(code.code());
+}
+
+/// Runs the CLI end to end and settles on the single [`ExitCode`] `main`
+/// exits with (R24). This is the one place `dispatch`'s result is turned
+/// into a process exit code, via `exit::exit_code_for_result`.
+async fn run() -> ExitCode {
     let cli = Cli::parse();
 
     // Setup tracing with CLI options
@@ -60,7 +77,10 @@ async fn main() -> anyhow::Result<()> {
         verbose: cli.verbose,
         quiet: cli.quiet,
     };
-    setup_tracing_with_options(&logging_opts)?;
+    if let Err(err) = setup_tracing_with_options(&logging_opts) {
+        exit::print_error(&err);
+        return exit::exit_code_for_result(&Err(err));
+    }
 
     // Handle --no-color: set env var for downstream tools
     if cli.no_color {
@@ -81,45 +101,56 @@ async fn main() -> anyhow::Result<()> {
         watch.finish().await;
     }
 
-    result
+    if let Err(err) = &result {
+        exit::print_error(err);
+    }
+    exit::exit_code_for_result(&result)
 }
 
-async fn dispatch(command: Option<Commands>) -> anyhow::Result<()> {
-    match command {
+async fn dispatch(command: Option<Commands>) -> anyhow::Result<ExitCode> {
+    let code = match command {
         Some(Commands::Init(args)) => {
             init::run(args)?;
+            ExitCode::Success
         }
-        Some(Commands::Plan(args)) => {
-            plan::run(args).await?;
-        }
+        Some(Commands::Plan(args)) => plan::run(args).await?,
         Some(Commands::Apply(args)) => {
             apply::run(args).await?;
+            ExitCode::Success
         }
         Some(Commands::List(args)) => {
             list::run(args).await?;
+            ExitCode::Success
         }
         Some(Commands::Describe(args)) => {
             describe::run(args).await?;
+            ExitCode::Success
         }
         Some(Commands::Run(args)) => {
             crate::commands::run::run(args).await?;
+            ExitCode::Success
         }
         Some(Commands::Module(args)) => {
             commands::module::execute(args)?;
+            ExitCode::Success
         }
         Some(Commands::Check(args)) => {
             commands::check::execute(args)?;
+            ExitCode::Success
         }
         Some(Commands::Plugins(args)) => {
             commands::plugins::execute(args).await?;
+            ExitCode::Success
         }
         Some(Commands::SelfUpdate(args)) => {
             commands::self_update::run(args).await?;
+            ExitCode::Success
         }
         None => {
             Cli::command().print_help()?;
+            ExitCode::Success
         }
-    }
+    };
 
-    Ok(())
+    Ok(code)
 }
