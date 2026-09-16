@@ -8,6 +8,7 @@ mod includes;
 mod k3s_nebula;
 mod list;
 mod module;
+mod module_checks;
 mod naming;
 mod plan;
 mod self_update;

@@ -299,6 +299,13 @@ pub struct ModuleManifest {
     pub tasks: HashMap<String, TaskDef>,
     #[serde(default)]
     pub ensures: Vec<EnsureEntry>,
+    /// Rules the module authors so every consuming repo shares one source of
+    /// truth (R1, `docs/dev-standards-module-handoff.md`). Reuses `CheckDef`
+    /// exactly -- a module-authored check and a repo-authored one are the
+    /// same rule type, `wvr check` just runs them from different sources
+    /// (see `CheckSource` in `crate::check`).
+    #[serde(default)]
+    pub checks: Vec<CheckDef>,
 }
 
 /// A single `ensures:` entry in a module manifest.
@@ -421,6 +428,52 @@ inputs:
         let manifest = ModuleManifest::load(&path).unwrap();
         assert_eq!(manifest.inputs.len(), 1);
         assert!(manifest.inputs.contains_key("region"));
+    }
+
+    /// A manifest with no `checks:` key still loads (backward compatibility)
+    /// -- modules written before R1 must not fail to parse.
+    #[test]
+    fn module_manifest_without_checks_key_still_loads() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("weaver.module.yaml");
+        fs::write(
+            &path,
+            r#"
+inputs:
+  region:
+    type: string
+    required: true
+"#,
+        )
+        .unwrap();
+
+        let manifest = ModuleManifest::load(&path).unwrap();
+        assert!(manifest.checks.is_empty());
+    }
+
+    /// R1: a module manifest can declare `checks:`, reusing `CheckDef`
+    /// exactly.
+    #[test]
+    fn module_manifest_loads_checks() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("weaver.module.yaml");
+        fs::write(
+            &path,
+            r#"
+inputs: {}
+checks:
+  - id: no-todo
+    name: "No TODO markers"
+    command: "! grep -r TODO ."
+    severity: error
+"#,
+        )
+        .unwrap();
+
+        let manifest = ModuleManifest::load(&path).unwrap();
+        assert_eq!(manifest.checks.len(), 1);
+        assert_eq!(manifest.checks[0].id.as_deref(), Some("no-todo"));
+        assert_eq!(manifest.checks[0].command, "! grep -r TODO .");
     }
 
     #[test]
