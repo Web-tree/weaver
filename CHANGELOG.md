@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/Web-tree/weaver/compare/v0.2.0...v0.2.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate comfy-table to v8 ([#88](https://github.com/Web-tree/weaver/issues/88)) ([0ffbf60](https://github.com/Web-tree/weaver/commit/0ffbf6094eb8d295661b4e9ae8cf43feb778d9c0))
+
 ## [0.2.0](https://github.com/Web-tree/weaver/compare/v0.1.0...v0.2.0) (2026-09-11)
 
 
