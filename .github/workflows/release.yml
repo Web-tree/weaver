@@ -122,7 +122,7 @@ jobs:
 
                   echo "Releasing wvr $version (tag $tag, prerelease=$prerelease, publish=$publish)"
 
-            - uses: actions-rust-lang/setup-rust-toolchain@v1
+            - uses: actions-rust-lang/setup-rust-toolchain@v2
               with:
                   toolchain: stable
                   # The action defaults to `-D warnings`, which would fail the
@@ -154,7 +154,7 @@ jobs:
               with:
                   ref: ${{ inputs.tag || github.ref }}
 
-            - uses: actions-rust-lang/setup-rust-toolchain@v1
+            - uses: actions-rust-lang/setup-rust-toolchain@v2
               with:
                   toolchain: stable
                   target: ${{ matrix.target }}
