@@ -335,13 +335,12 @@ fn resolve_module_for_check(
     resolver: &mut ModuleResolver,
     module_config: &ModuleConfig,
 ) -> anyhow::Result<(PathBuf, String)> {
-    if let Some(hit) = resolver.resolve_from_cache(&module_config.name, &module_config.source, &module_config.r#ref)
-    {
-        return Ok(hit);
+    if let Some(hit) = resolver.resolve_module_from_cache(module_config) {
+        return hit;
     }
 
     resolver
-        .resolve_with_commit(&module_config.name, &module_config.source, &module_config.r#ref)
+        .resolve_module_with_commit(module_config)
         .map_err(|err| {
             anyhow::anyhow!(
                 "Module '{}' ({}@{}) is not pinned/cached and could not be resolved now: {err}\n\

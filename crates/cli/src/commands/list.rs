@@ -78,7 +78,7 @@ fn print_json(config: &WeaverConfig, args: &ListArgs) -> anyhow::Result<()> {
 
         for app in &config.apps {
             if let Some(mod_config) = module_map.get(&app.module) {
-                match resolver.resolve(&mod_config.name, &mod_config.source, &mod_config.r#ref) {
+                match resolver.resolve_module(mod_config) {
                     Ok(path) => {
                         let manifest_path = path.join("weaver.module.yaml");
                         if manifest_path.exists() {
@@ -130,7 +130,7 @@ fn print_table(config: &WeaverConfig, args: &ListArgs) -> anyhow::Result<()> {
 
         for app in &config.apps {
             if let Some(mod_config) = module_map.get(&app.module) {
-                if let Ok(path) = resolver.resolve(&mod_config.name, &mod_config.source, &mod_config.r#ref) {
+                if let Ok(path) = resolver.resolve_module(mod_config) {
                     let manifest_path = path.join("weaver.module.yaml");
                     if manifest_path.exists() {
                         if let Ok(manifest) = ModuleManifest::load(&manifest_path) {

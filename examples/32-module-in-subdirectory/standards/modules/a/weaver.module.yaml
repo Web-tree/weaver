@@ -1,0 +1,5 @@
+inputs:
+  service_name:
+    type: string
+    required: true
+    description: "Name of the web service"

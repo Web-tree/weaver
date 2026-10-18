@@ -133,15 +133,20 @@ modules:
   - name: "beads"
     source: "https://github.com/<org>/beads-module.git"   # or a local path for dev
     ref: "v1.0.0"                                          # branch, tag, or 40-char SHA
+    path: "weaver/beads"                                   # optional: module subdirectory
 ```
 
 - `source` with no `://` is a **local path** (`canonicalize`d); otherwise a git
   URL (`crates/core/src/module.rs:30-46`). **Use `https://` (or `ssh://`), never
   the `git@host:` SCP shorthand** — that has no `://` and is misread as a local
   path.
-- **`path:` (subdir) is declared but never read** — ship the module at the **repo
-  root** of its own repo, or as its own directory referenced by `source:`.
-- `wvr module add <source> --ref <r>` pins the commit into `weaver.lock`;
+- `path:` (optional) selects a subdirectory of the checkout: the module is read
+  from `<cache>/<commit>/<path>`, so one repo can ship several modules or keep a
+  module beside other code. It must be relative, stay inside the repo, and name a
+  directory holding `weaver.module.yaml`, `files/` or `templates/`; otherwise the
+  error lists the module directories the repo does contain. `weaver.lock` records
+  it next to the pinned commit (#74, example `32-module-in-subdirectory`).
+- `wvr module add <source> --ref <r> [--path <sub>]` pins the commit into `weaver.lock`;
   `wvr module update <name> --ref <r>` re-pins.
 
 ### 2.7 Gotchas / do-not-rely-on (stale or unimplemented)
@@ -404,8 +409,8 @@ task approach (§3) sidesteps this by being explicit.
 2. **Plugin or task** — ship v1 as tasks (§3); add the `beads-init` plugin (§6)
    only if auto-apply idempotency is required.
 3. **Where the module lives** — its own git repo (recommended; clean `source:`
-   URL + tag pinning) vs a directory inside an existing repo. Root-of-repo only
-   (`path:` subdir is unsupported, §2.6).
+   URL + tag pinning) vs a directory inside an existing repo, addressed with
+   `path:` (§2.6).
 4. **Checks in the consumer** — the module can't ship checks (§2.5); document the
    `weaver.yaml` `checks:` block (§3.4) as part of onboarding, or add tooling to
    inject it.

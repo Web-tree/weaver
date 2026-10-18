@@ -108,7 +108,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
             .find(|m| m.name == app_config.module)
             .ok_or_else(|| anyhow::anyhow!("Module '{}' not found", app_config.module))?;
 
-        let module_path = resolver.resolve(&module_config.name, &module_config.source, &module_config.r#ref)?;
+        let module_path = resolver.resolve_module(module_config)?;
         let manifest_path = module_path.join("weaver.module.yaml");
         let manifest = ModuleManifest::load(&manifest_path)?;
 

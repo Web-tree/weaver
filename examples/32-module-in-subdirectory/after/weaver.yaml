@@ -1,0 +1,22 @@
+version: "1"
+modules:
+  # Both modules come from the same git repository; `path` picks the
+  # subdirectory that holds each one.
+  - name: "web-standard"
+    source: "../standards"
+    ref: "v1"
+    path: "modules/a"
+  - name: "api-standard"
+    source: "../standards"
+    ref: "v1"
+    path: "modules/b"
+apps:
+  - name: "web"
+    module: "web-standard"
+    path: "web"
+    inputs:
+      service_name: "storefront"
+  - name: "api"
+    module: "api-standard"
+    path: "api"
+    inputs: {}

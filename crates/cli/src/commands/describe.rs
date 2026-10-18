@@ -56,7 +56,7 @@ pub async fn run(args: DescribeArgs) -> anyhow::Result<()> {
         })?;
 
     let mut resolver = ModuleResolver::new(None)?;
-    let module_path = resolver.resolve(&module_config.name, &module_config.source, &module_config.r#ref)?;
+    let module_path = resolver.resolve_module(module_config)?;
     let manifest_path = module_path.join("weaver.module.yaml");
     let manifest = ModuleManifest::load(&manifest_path)?;
 
@@ -71,6 +71,7 @@ pub async fn run(args: DescribeArgs) -> anyhow::Result<()> {
             "app": app_config.name,
             "path": app_config.path,
             "module": format!("{}@{}", module_config.name, module_config.r#ref),
+            "module_path": module_config.path,
             "inputs": inputs,
             "tasks": manifest.tasks,
             "ensures": manifest.ensures,
@@ -81,6 +82,9 @@ pub async fn run(args: DescribeArgs) -> anyhow::Result<()> {
         println!("App: {}", app_config.name);
         println!("Path: {}", app_config.path);
         println!("Module: {}@{}", module_config.name, module_config.r#ref);
+        if let Some(path) = &module_config.path {
+            println!("Module path: {path}");
+        }
         println!();
 
         if !app_config.inputs.is_empty() {
