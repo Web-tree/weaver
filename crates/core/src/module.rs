@@ -148,6 +148,14 @@ pub fn module_dir(checkout: PathBuf, subpath: Option<&str>) -> anyhow::Result<Pa
             modules_found(&checkout)
         );
     }
+    // The lexical check above cannot see a committed symlink, which would let
+    // the pinned commit vouch for files elsewhere on the host.
+    if !dir.canonicalize()?.starts_with(checkout.canonicalize()?) {
+        anyhow::bail!(
+            "Module path '{subpath}' resolves outside the module repository; {}",
+            modules_found(&checkout)
+        );
+    }
     if !is_module_dir(&dir) {
         anyhow::bail!(
             "Module path '{subpath}' has no weaver.module.yaml, files/ or templates/; {}",
@@ -209,6 +217,21 @@ mod module_dir_tests {
             module_dir(tmp.path().to_path_buf(), Some("weaver/web")).unwrap(),
             tmp.path().join("weaver/web")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_out_of_the_checkout_is_rejected() {
+        let tmp = tempdir().unwrap();
+        let outside = tmp.path().join("outside");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("weaver.module.yaml"), "inputs: {}\n").unwrap();
+        let checkout = tmp.path().join("checkout");
+        std::fs::create_dir_all(checkout.join("weaver")).unwrap();
+        std::os::unix::fs::symlink(&outside, checkout.join("weaver/web")).unwrap();
+
+        let err = module_dir(checkout, Some("weaver/web")).unwrap_err().to_string();
+        assert!(err.contains("outside the module repository"), "{err}");
     }
 
     #[test]
