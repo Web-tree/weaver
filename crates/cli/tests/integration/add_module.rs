@@ -105,3 +105,83 @@ fn add_module_is_idempotent_updates_existing() {
         "expected old ref v1 to be gone\n{weaver}"
     );
 }
+
+/// A local git repo at `dir` holding a module in `modules/a`, tagged `v1`.
+fn make_repo_with_module_in_subdir(dir: &Path) -> String {
+    std::fs::create_dir_all(dir.join("modules/a")).unwrap();
+    std::fs::write(dir.join("modules/a/weaver.module.yaml"), "inputs: {}\n").unwrap();
+    for args in [
+        vec!["init"],
+        vec!["config", "user.email", "t@t.local"],
+        vec!["config", "user.name", "T"],
+        vec!["add", "."],
+        vec!["commit", "-m", "init"],
+        vec!["tag", "v1"],
+    ] {
+        std::process::Command::new("git").args(&args).current_dir(dir).output().unwrap();
+    }
+    format!("file://{}", dir.display())
+}
+
+#[test]
+fn add_module_with_path_records_it_in_config_and_lock() {
+    let ctx = TestContext::new();
+    ctx.write_file("weaver.yaml", "version: \"1\"\nmodules: []\napps: []\n");
+    let url = make_repo_with_module_in_subdir(&ctx.root.join("std-repo"));
+
+    cmd()
+        .args(["module", "add", &url, "--name", "a", "--ref", "v1", "--path", "modules/a"])
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .success();
+
+    let weaver = ctx.read_file("weaver.yaml");
+    assert!(weaver.contains("path: modules/a"), "{weaver}");
+    let lock = ctx.read_file("weaver.lock");
+    assert!(lock.contains("path: modules/a"), "{lock}");
+}
+
+#[test]
+fn add_module_updates_the_path_of_an_existing_entry() {
+    let ctx = TestContext::new();
+    ctx.write_file("weaver.yaml", "version: \"1\"\nmodules: []\napps: []\n");
+    let url = make_repo_with_module_in_subdir(&ctx.root.join("std-repo"));
+    std::fs::create_dir_all(ctx.root.join("std-repo/modules/b/templates")).unwrap();
+    std::fs::write(ctx.root.join("std-repo/modules/b/templates/x.txt"), "x\n").unwrap();
+    for args in [vec!["add", "."], vec!["commit", "-m", "b"], vec!["tag", "-f", "v1"]] {
+        std::process::Command::new("git").args(&args).current_dir(ctx.root.join("std-repo")).output().unwrap();
+    }
+
+    for sub in ["modules/a", "modules/b"] {
+        cmd()
+            .args(["module", "add", &url, "--name", "std", "--ref", "v1", "--path", sub])
+            .env("HOME", ctx.temp.path())
+            .current_dir(&ctx.root)
+            .assert()
+            .success();
+    }
+
+    let weaver = ctx.read_file("weaver.yaml");
+    assert!(weaver.contains("path: modules/b") && !weaver.contains("modules/a"), "{weaver}");
+}
+
+#[test]
+fn add_module_with_a_bad_path_fails_without_touching_files() {
+    let ctx = TestContext::new();
+    let original = "version: \"1\"\nmodules: []\napps: []\n";
+    ctx.write_file("weaver.yaml", original);
+    let url = make_repo_with_module_in_subdir(&ctx.root.join("std-repo"));
+
+    cmd()
+        .args(["module", "add", &url, "--name", "a", "--ref", "v1", "--path", "modules/nope"])
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("modules/nope"))
+        .stderr(predicate::str::contains("modules found: modules/a"));
+
+    assert_eq!(ctx.read_file("weaver.yaml"), original);
+    assert!(!ctx.root.join("weaver.lock").exists());
+}

@@ -32,6 +32,9 @@ pub struct AddArgs {
     /// Git ref (branch, tag, or commit)
     #[arg(long, default_value = "main")]
     pub r#ref: String,
+    /// Subdirectory of the repository that holds the module
+    #[arg(long)]
+    pub path: Option<String>,
 }
 
 #[derive(Args)]
@@ -116,6 +119,7 @@ fn run_add(args: AddArgs) -> anyhow::Result<()> {
         Some(existing) => {
             existing.source = args.source.clone();
             existing.r#ref = args.r#ref.clone();
+            existing.path = args.path.clone();
             true
         }
         None => {
@@ -123,15 +127,17 @@ fn run_add(args: AddArgs) -> anyhow::Result<()> {
                 name: name.clone(),
                 source: args.source.clone(),
                 r#ref: args.r#ref.clone(),
-                path: None,
+                path: args.path.clone(),
             });
             false
         }
     };
 
-    // Resolve + pin the commit (also clones into the global store).
+    // Resolve + pin the commit (also clones into the global store) before
+    // writing anything, so a bad source, ref or path leaves the files alone.
     let mut resolver = ModuleResolver::new(None)?;
-    resolver.resolve(&name, &args.source, &args.r#ref)?;
+    let module = config.modules.iter().find(|m| m.name == name).expect("module was just upserted");
+    resolver.resolve_module(module)?;
 
     let f = std::fs::File::create(config_path)?;
     serde_yml::to_writer(f, &config)?;
