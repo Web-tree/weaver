@@ -136,3 +136,46 @@ fn a_missing_module_path_is_an_error_not_an_empty_module() {
         .stderr(predicate::str::contains("weaver/nope"))
         .stderr(predicate::str::contains("modules found: weaver/stdmod"));
 }
+
+fn describe_json(ctx: &TestContext) -> serde_json::Value {
+    let out = cmd()
+        .args(["describe", "app", "--json"])
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+#[test]
+fn describe_shows_the_module_path() {
+    let ctx = TestContext::new();
+    let repo = make_repo_with_module_in(&ctx.root, "standards", "weaver/stdmod", "inputs: {}\n");
+    ctx.write_file("weaver.yaml", &weaver_yaml(&repo, "    path: \"weaver/stdmod\""));
+
+    cmd()
+        .args(["describe", "app"])
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Module path: weaver/stdmod"));
+    assert_eq!(describe_json(&ctx)["module_path"], "weaver/stdmod");
+}
+
+#[test]
+fn describe_json_has_a_null_module_path_when_unset() {
+    let ctx = TestContext::new();
+    let repo = make_repo_with_module_in(&ctx.root, "standards", "weaver/stdmod", "inputs: {}\n");
+    ctx.write_file("weaver.yaml", &weaver_yaml(&repo, ""));
+
+    assert_eq!(describe_json(&ctx).get("module_path"), Some(&serde_json::Value::Null));
+    cmd()
+        .args(["describe", "app"])
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Module path").not());
+}

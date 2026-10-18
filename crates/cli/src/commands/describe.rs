@@ -71,6 +71,7 @@ pub async fn run(args: DescribeArgs) -> anyhow::Result<()> {
             "app": app_config.name,
             "path": app_config.path,
             "module": format!("{}@{}", module_config.name, module_config.r#ref),
+            "module_path": module_config.path,
             "inputs": inputs,
             "tasks": manifest.tasks,
             "ensures": manifest.ensures,
@@ -81,6 +82,9 @@ pub async fn run(args: DescribeArgs) -> anyhow::Result<()> {
         println!("App: {}", app_config.name);
         println!("Path: {}", app_config.path);
         println!("Module: {}@{}", module_config.name, module_config.r#ref);
+        if let Some(path) = &module_config.path {
+            println!("Module path: {path}");
+        }
         println!();
 
         if !app_config.inputs.is_empty() {
