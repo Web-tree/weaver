@@ -10,6 +10,7 @@ mod k3s_nebula;
 mod list;
 mod module;
 mod module_checks;
+mod module_path;
 mod naming;
 mod plan;
 mod self_update;

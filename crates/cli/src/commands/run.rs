@@ -47,7 +47,7 @@ pub async fn run(args: RunArgs) -> anyhow::Result<()> {
 
     // Resolve module
     let mut resolver = ModuleResolver::new(None)?;
-    let module_path = resolver.resolve(&module_config.name, &module_config.source, &module_config.r#ref)?;
+    let module_path = resolver.resolve_module(module_config)?;
 
     // Load manifest
     let manifest_path = module_path.join("weaver.module.yaml");
