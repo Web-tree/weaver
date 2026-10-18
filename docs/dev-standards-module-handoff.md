@@ -341,10 +341,8 @@ is explicitly not the end state, because R1 is the whole point.
    depend on tools present on the runner, which collides with the no-false-green
    rule. Needs a decision before R17.
 3. **Where the standards module lives.** Its own repo (as `beads-module` did, per
-   the marketplace design's M2 separation), or inside this repo? Module sources must
-   be a git repo root today — `ModuleConfig.path` is parsed but never read
-   (`config.rs:144`) — so a subdirectory of this repo is not addressable until that
-   changes.
+   the marketplace design's M2 separation), or inside this repo? A subdirectory is
+   addressable: `modules[].path` selects it inside the checkout (resolved by #74).
 4. **Profile detection.** Explicit selection in each repo's config, or inferred from
    repo contents (a `go.mod` implies `worker-go`)? Inference is friendlier and
    guessable-wrong; explicit is honest. Recommendation: explicit, with inference as
