@@ -73,3 +73,5 @@ examples:
   # examples/31-fs-symlink-relocate/README.md "Known limitations".
   31-fs-symlink-relocate:
     stage: pending
+  32-module-in-subdirectory:
+    stage: implemented
