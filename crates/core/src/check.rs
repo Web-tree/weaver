@@ -10,8 +10,10 @@
 //! ## No false green (§6)
 //!
 //! A check that cannot actually be evaluated -- the command fails to spawn,
-//! the timeout expires, or `stdout_matches` is not a valid regex -- reports
-//! [`Status::Error`], never [`Status::Pass`]. A linter that silently passes
+//! the timeout expires, it exits with one of its `error_exit` codes (by
+//! default the shell's 126/127, "not executable"/"not found"), or
+//! `stdout_matches` is not a valid regex -- reports [`Status::Error`], never
+//! [`Status::Pass`] (and not [`Status::Fail`], which claims a violation). A linter that silently passes
 //! when it couldn't run is worse than no linter.
 
 use crate::config::{CheckDef, Severity};
@@ -219,6 +221,14 @@ pub async fn run_check(check: &CheckDef, repo_root: &Path, source: CheckSource) 
     };
 
     let exit_code = output.status.code().unwrap_or(-1);
+    if exit_code != check.expect && check.error_exit.contains(&exit_code) {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let mut detail = format!("could not evaluate: exit code {exit_code}");
+        if !stderr.trim().is_empty() {
+            detail.push_str(&format!("; stderr: {}", stderr.trim()));
+        }
+        return CheckResult::new(check, Status::Error, detail, source);
+    }
     let stdout_raw = String::from_utf8_lossy(&output.stdout);
     // Normalize stdout the same way shell command substitution (`$(...)`)
     // does: strip only *trailing* newlines. Leading and interior bytes
@@ -279,6 +289,7 @@ pub async fn run_check(check: &CheckDef, repo_root: &Path, source: CheckSource) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::DEFAULT_ERROR_EXIT;
     use tempfile::TempDir;
 
     fn base_check(command: &str) -> CheckDef {
@@ -294,6 +305,7 @@ mod tests {
             timeout: None,
             cwd: None,
             remediate: None,
+            error_exit: DEFAULT_ERROR_EXIT.to_vec(),
         }
     }
 
@@ -309,6 +321,60 @@ mod tests {
         let check = base_check("exit 1");
         let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
         assert_eq!(result.status, Status::Fail);
+    }
+
+    // -- evaluation errors vs violations (#120) ------------------------
+
+    #[tokio::test]
+    async fn exit_127_is_an_evaluation_error_not_a_violation() {
+        let check = base_check("exit 127");
+        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        assert_eq!(result.status, Status::Error, "{}", result.observed);
+        assert!(
+            result.observed.contains("could not evaluate"),
+            "{}",
+            result.observed
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_tool_is_an_evaluation_error_naming_it() {
+        let check = base_check("wvr-no-such-tool --version");
+        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        assert_eq!(result.status, Status::Error, "{}", result.observed);
+        assert!(
+            result.observed.contains("wvr-no-such-tool"),
+            "{}",
+            result.observed
+        );
+    }
+
+    #[tokio::test]
+    async fn a_non_executable_command_is_an_evaluation_error() {
+        let check = base_check("exit 126");
+        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        assert_eq!(result.status, Status::Error);
+    }
+
+    #[tokio::test]
+    async fn custom_error_exit_codes_replace_the_defaults() {
+        let mut check = base_check("exit 2");
+        check.error_exit = vec![2, 5];
+        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        assert_eq!(result.status, Status::Error);
+
+        check.command = "exit 127".to_string();
+        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        assert_eq!(result.status, Status::Fail);
+    }
+
+    #[tokio::test]
+    async fn an_expected_exit_code_is_never_an_error() {
+        let mut check = base_check("exit 2");
+        check.expect = 2;
+        check.error_exit = vec![2];
+        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        assert_eq!(result.status, Status::Pass);
     }
 
     #[tokio::test]

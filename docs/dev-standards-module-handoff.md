@@ -307,7 +307,12 @@ is explicitly not the end state, because R1 is the whole point.
   beyond what a rule explicitly probes.
 - **No false green** — a rule that cannot be evaluated (missing tool, unreadable
   file) reports `error`, never `pass`. This is worth stating because it is the
-  failure mode that quietly kills trust in a linter.
+  failure mode that quietly kills trust in a linter. A `command` check maps the
+  exit codes in `error_exit` (default `[126, 127]`, the shell's "not executable"
+  and "not found") to `error` rather than `fail`. A rule whose tool reports a
+  parse error with its own code lists it alongside: `jq` exits 5 on input it
+  cannot parse (and 1 under `-e` on a false result), so a `jq -e` rule sets
+  `error_exit: [5, 126, 127]` (#120).
 - **Speed** — a full validation of a repo this size must be fast enough to sit in
   the PR gate without anyone noticing; fleet mode must parallelize across repos.
 - **Diagnosability** — a failing rule tells you the file, the location within it,
