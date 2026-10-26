@@ -284,6 +284,19 @@ pub struct CheckDef {
     /// Human-readable "how to fix this" string (spec 004 FR-024).
     #[serde(default)]
     pub remediate: Option<String>,
+    /// Exit codes that mean the check could not be evaluated (a tool is
+    /// missing, an input would not parse) rather than that the repo violates
+    /// it: reported as `Status::Error`, not `Status::Fail`. Replaces
+    /// [`DEFAULT_ERROR_EXIT`] when set; `expect` always wins.
+    #[serde(default = "default_error_exit")]
+    pub error_exit: Vec<i32>,
+}
+
+/// The shell's own "could not run it" codes: 126 not executable, 127 not found.
+pub const DEFAULT_ERROR_EXIT: [i32; 2] = [126, 127];
+
+fn default_error_exit() -> Vec<i32> {
+    DEFAULT_ERROR_EXIT.to_vec()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -269,3 +269,46 @@ apps:
     );
     assert_eq!(value["summary"]["gate_failures"], 0);
 }
+
+/// A check whose tool is missing could not be evaluated: it reports `error`,
+/// still gates, and never claims the repo violates the rule (#120).
+#[test]
+fn a_missing_tool_reports_error_not_fail() {
+    let ctx = TestContext::new();
+    ctx.write_file(
+        "weaver.yaml",
+        r#"
+version: "1"
+apps:
+  - name: "app1"
+    module: "mod1"
+    path: "app1"
+    checks:
+      - name: "needs-tool"
+        command: "wvr-no-such-tool --check"
+      - name: "parse-error"
+        command: "exit 2"
+        error_exit: [2]
+      - name: "violation"
+        command: "exit 1"
+"#,
+    );
+
+    let (value, output) = run_check_json(&ctx);
+    assert_eq!(output.status.code(), Some(2));
+
+    let status = |name: &str| {
+        value["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["name"] == name)
+            .unwrap()["status"]
+            .clone()
+    };
+    assert_eq!(status("needs-tool"), "error");
+    assert_eq!(status("parse-error"), "error");
+    assert_eq!(status("violation"), "fail");
+    assert_eq!(value["summary"]["error"], 2);
+    assert_eq!(value["summary"]["gate_failures"], 3);
+}
