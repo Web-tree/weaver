@@ -157,11 +157,17 @@ impl ModuleResolver {
 /// or `subpath` below it, so one repo can ship modules beside other content.
 /// `subpath` must be relative and stay inside the checkout, and must hold a
 /// module -- a wrong directory would otherwise load as an empty module whose
-/// checks silently never run.
+/// checks silently never run. No symlink in the module may leave the checkout.
 pub fn module_dir(checkout: PathBuf, subpath: Option<&str>) -> anyhow::Result<PathBuf> {
-    let Some(subpath) = subpath.filter(|p| !p.is_empty()) else {
-        return Ok(checkout);
+    let dir = match subpath.filter(|p| !p.is_empty()) {
+        Some(subpath) => subpath_dir(&checkout, subpath)?,
+        None => checkout.clone(),
     };
+    reject_escaping_symlinks(&checkout, &dir)?;
+    Ok(dir)
+}
+
+fn subpath_dir(checkout: &Path, subpath: &str) -> anyhow::Result<PathBuf> {
     let rel = Path::new(subpath);
     if !rel
         .components()
@@ -169,14 +175,14 @@ pub fn module_dir(checkout: PathBuf, subpath: Option<&str>) -> anyhow::Result<Pa
     {
         anyhow::bail!(
             "Module path '{subpath}' must be a relative path inside the module repository; {}",
-            modules_found(&checkout)
+            modules_found(checkout)
         );
     }
     let dir = checkout.join(rel);
     if !dir.is_dir() {
         anyhow::bail!(
             "Module path '{subpath}' is not a directory in the module repository; {}",
-            modules_found(&checkout)
+            modules_found(checkout)
         );
     }
     // The lexical check above cannot see a committed symlink, which would let
@@ -184,16 +190,57 @@ pub fn module_dir(checkout: PathBuf, subpath: Option<&str>) -> anyhow::Result<Pa
     if !dir.canonicalize()?.starts_with(checkout.canonicalize()?) {
         anyhow::bail!(
             "Module path '{subpath}' resolves outside the module repository; {}",
-            modules_found(&checkout)
+            modules_found(checkout)
         );
     }
     if !is_module_dir(&dir) {
         anyhow::bail!(
             "Module path '{subpath}' has no weaver.module.yaml, files/ or templates/; {}",
-            modules_found(&checkout)
+            modules_found(checkout)
         );
     }
     Ok(dir)
+}
+
+/// Every file weaver loads from a module (the manifest, `files/`, `templates/`,
+/// ensure sources) lives under `dir`, and the pinned commit vouches only for
+/// the checkout: a symlink to anything else -- or to nothing yet -- would let
+/// the host's mutable files ride on that commit.
+fn reject_escaping_symlinks(checkout: &Path, dir: &Path) -> anyhow::Result<()> {
+    let root = checkout.canonicalize()?;
+    let mut visited = std::collections::HashSet::new();
+    let mut pending = vec![dir.canonicalize()?];
+    while let Some(dir) = pending.pop() {
+        if !visited.insert(dir.clone()) {
+            continue;
+        }
+        for entry in std::fs::read_dir(&dir)? {
+            let entry = entry?;
+            if entry.file_name() == ".git" {
+                continue;
+            }
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                pending.push(path);
+            } else if file_type.is_symlink() {
+                let name = path.strip_prefix(&root).unwrap_or(&path).display();
+                let target = path.canonicalize().map_err(|e| {
+                    anyhow::anyhow!("Module file '{name}' is a symlink that does not resolve: {e}")
+                })?;
+                if !target.starts_with(&root) {
+                    anyhow::bail!(
+                        "Module file '{name}' is a symlink to {}, outside the module repository",
+                        target.display()
+                    );
+                }
+                if target.is_dir() {
+                    pending.push(target);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn is_module_dir(dir: &Path) -> bool {
@@ -284,6 +331,135 @@ mod module_dir_tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("outside the module repository"), "{err}");
+    }
+
+    /// A committed module repo laid out under `root/checkout`, with a file the
+    /// host holds outside it.
+    #[cfg(unix)]
+    fn checkout_beside_a_host_file(root: &Path) -> (PathBuf, PathBuf) {
+        let host_file = root.join("host/secret.txt");
+        std::fs::create_dir_all(host_file.parent().unwrap()).unwrap();
+        std::fs::write(&host_file, "host\n").unwrap();
+        let checkout = root.join("checkout");
+        std::fs::create_dir_all(checkout.join("weaver/web/files")).unwrap();
+        std::fs::create_dir_all(checkout.join("weaver/web/templates")).unwrap();
+        std::fs::write(
+            checkout.join("weaver/web/weaver.module.yaml"),
+            "inputs: {}\n",
+        )
+        .unwrap();
+        (checkout, host_file)
+    }
+
+    #[cfg(unix)]
+    fn assert_names_escape(result: anyhow::Result<PathBuf>, file: &str) {
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains(&format!("'{file}'")) && err.contains("outside the module repository"),
+            "{err}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_manifest_symlinked_out_of_the_checkout_is_rejected() {
+        let tmp = tempdir().unwrap();
+        let (checkout, host_file) = checkout_beside_a_host_file(tmp.path());
+        let manifest = checkout.join("weaver/web/weaver.module.yaml");
+        std::fs::remove_file(&manifest).unwrap();
+        std::os::unix::fs::symlink(&host_file, &manifest).unwrap();
+
+        assert_names_escape(
+            module_dir(checkout, Some("weaver/web")),
+            "weaver/web/weaver.module.yaml",
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_files_entry_symlinked_out_of_the_checkout_is_rejected() {
+        let tmp = tempdir().unwrap();
+        let (checkout, host_file) = checkout_beside_a_host_file(tmp.path());
+        std::os::unix::fs::symlink(&host_file, checkout.join("weaver/web/files/config")).unwrap();
+
+        assert_names_escape(
+            module_dir(checkout, Some("weaver/web")),
+            "weaver/web/files/config",
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_templates_directory_symlinked_out_of_the_checkout_is_rejected() {
+        let tmp = tempdir().unwrap();
+        let (checkout, host_file) = checkout_beside_a_host_file(tmp.path());
+        let templates = checkout.join("weaver/web/templates");
+        std::fs::remove_dir(&templates).unwrap();
+        std::os::unix::fs::symlink(host_file.parent().unwrap(), &templates).unwrap();
+
+        assert_names_escape(
+            module_dir(checkout, Some("weaver/web")),
+            "weaver/web/templates",
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_root_module_with_an_escaping_symlink_is_rejected() {
+        let tmp = tempdir().unwrap();
+        let (checkout, host_file) = checkout_beside_a_host_file(tmp.path());
+        std::os::unix::fs::symlink(&host_file, checkout.join("leak")).unwrap();
+
+        assert_names_escape(module_dir(checkout, None), "leak");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_escape_behind_an_in_checkout_directory_link_is_rejected() {
+        let tmp = tempdir().unwrap();
+        let (checkout, host_file) = checkout_beside_a_host_file(tmp.path());
+        std::fs::create_dir_all(checkout.join("shared")).unwrap();
+        std::os::unix::fs::symlink(&host_file, checkout.join("shared/leak")).unwrap();
+        std::os::unix::fs::symlink("../../../shared", checkout.join("weaver/web/files/shared"))
+            .unwrap();
+
+        assert_names_escape(module_dir(checkout, Some("weaver/web")), "shared/leak");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_dangling_symlink_is_rejected() {
+        let tmp = tempdir().unwrap();
+        let (checkout, _) = checkout_beside_a_host_file(tmp.path());
+        std::os::unix::fs::symlink(
+            tmp.path().join("not-yet-on-this-host"),
+            checkout.join("weaver/web/files/later"),
+        )
+        .unwrap();
+
+        let err = module_dir(checkout, Some("weaver/web"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("'weaver/web/files/later'"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinks_that_stay_inside_the_checkout_are_allowed() {
+        let tmp = tempdir().unwrap();
+        let (checkout, _) = checkout_beside_a_host_file(tmp.path());
+        std::fs::write(checkout.join("README.md"), "shared\n").unwrap();
+        std::os::unix::fs::symlink(
+            "../../../README.md",
+            checkout.join("weaver/web/files/README.md"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink("..", checkout.join("weaver/web/files/loop")).unwrap();
+
+        assert_eq!(
+            module_dir(checkout.clone(), Some("weaver/web")).unwrap(),
+            checkout.join("weaver/web")
+        );
     }
 
     #[test]
