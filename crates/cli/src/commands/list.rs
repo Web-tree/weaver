@@ -77,23 +77,20 @@ fn print_json(config: &WeaverConfig, args: &ListArgs) -> anyhow::Result<()> {
         let module_map: HashMap<_, _> = config.modules.iter().map(|m| (&m.name, m)).collect();
 
         for app in &config.apps {
-            if let Some(mod_config) = module_map.get(&app.module) {
-                match resolver.resolve_module(mod_config) {
-                    Ok(path) => {
-                        let manifest_path = path.join("weaver.module.yaml");
-                        if manifest_path.exists() {
-                            if let Ok(manifest) = ModuleManifest::load(&manifest_path) {
-                                for (task_name, task_def) in manifest.tasks {
-                                    tasks_owned.push(TaskInfoOwned {
-                                        app: app.name.clone(),
-                                        name: task_name,
-                                        description: task_def.description.unwrap_or_default(),
-                                    });
-                                }
-                            }
-                        }
+            if let Some(mod_config) = module_map.get(&app.module)
+                && let Ok(path) = resolver.resolve_module(mod_config)
+            {
+                let manifest_path = path.join("weaver.module.yaml");
+                if manifest_path.exists()
+                    && let Ok(manifest) = ModuleManifest::load(&manifest_path)
+                {
+                    for (task_name, task_def) in manifest.tasks {
+                        tasks_owned.push(TaskInfoOwned {
+                            app: app.name.clone(),
+                            name: task_name,
+                            description: task_def.description.unwrap_or_default(),
+                        });
                     }
-                    Err(_) => {}
                 }
             }
         }
@@ -129,19 +126,19 @@ fn print_table(config: &WeaverConfig, args: &ListArgs) -> anyhow::Result<()> {
         let mut tasks = Vec::new();
 
         for app in &config.apps {
-            if let Some(mod_config) = module_map.get(&app.module) {
-                if let Ok(path) = resolver.resolve_module(mod_config) {
-                    let manifest_path = path.join("weaver.module.yaml");
-                    if manifest_path.exists() {
-                        if let Ok(manifest) = ModuleManifest::load(&manifest_path) {
-                            for (task_name, task_def) in manifest.tasks {
-                                tasks.push((
-                                    app.name.clone(),
-                                    task_name,
-                                    task_def.description.unwrap_or_default(),
-                                ));
-                            }
-                        }
+            if let Some(mod_config) = module_map.get(&app.module)
+                && let Ok(path) = resolver.resolve_module(mod_config)
+            {
+                let manifest_path = path.join("weaver.module.yaml");
+                if manifest_path.exists()
+                    && let Ok(manifest) = ModuleManifest::load(&manifest_path)
+                {
+                    for (task_name, task_def) in manifest.tasks {
+                        tasks.push((
+                            app.name.clone(),
+                            task_name,
+                            task_def.description.unwrap_or_default(),
+                        ));
                     }
                 }
             }

@@ -48,6 +48,7 @@ enum Stage {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::enum_variant_names)] // variant names are the suite's `type:` values
 enum CustomAssertion {
     FileExists { path: String },
     FileContains { path: String, value: String },
@@ -283,10 +284,10 @@ fn compare_dirs(actual_root: &Path, expected_root: &Path, ignored: &[String]) ->
     }
 
     for (path, expected_content) in &expected_files {
-        if let Some(actual_content) = actual_files.get(path) {
-            if actual_content != expected_content {
-                details.push(format!("content mismatch: {path}"));
-            }
+        if let Some(actual_content) = actual_files.get(path)
+            && actual_content != expected_content
+        {
+            details.push(format!("content mismatch: {path}"));
         }
     }
 

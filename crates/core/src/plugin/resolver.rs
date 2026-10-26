@@ -442,18 +442,18 @@ impl PluginResolver {
         ];
 
         for path in potential_paths {
-            if let Ok(canonical) = path.canonicalize() {
-                if canonical.exists() {
-                    match fs::read(&canonical) {
-                        Ok(data) => {
-                            eprintln!(
-                                "✓ Loaded plugin from local development: {}",
-                                canonical.display()
-                            );
-                            return Ok(Some(data));
-                        }
-                        Err(_) => continue,
+            if let Ok(canonical) = path.canonicalize()
+                && canonical.exists()
+            {
+                match fs::read(&canonical) {
+                    Ok(data) => {
+                        eprintln!(
+                            "✓ Loaded plugin from local development: {}",
+                            canonical.display()
+                        );
+                        return Ok(Some(data));
                     }
+                    Err(_) => continue,
                 }
             }
         }

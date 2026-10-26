@@ -38,7 +38,7 @@ impl Guest for Component {
             stdin: None,
         };
 
-        let result = exec(&exec_req).map_err(|e| EnsureError::ExecutionError(e))?;
+        let result = exec(&exec_req).map_err(EnsureError::ExecutionError)?;
         let stdout = String::from_utf8_lossy(&result.stdout).trim().to_string();
 
         if stdout == config.command {
@@ -83,7 +83,7 @@ impl Guest for Component {
             stdin: None,
         };
 
-        let result = exec(&exec_req).map_err(|e| EnsureError::ExecutionError(e))?;
+        let result = exec(&exec_req).map_err(EnsureError::ExecutionError)?;
 
         if result.status != 0 {
             let stderr = String::from_utf8_lossy(&result.stderr);

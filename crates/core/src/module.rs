@@ -367,7 +367,9 @@ mod resolve_tests {
     /// Point `WVR_HOME` at `dir` for the life of the returned guard. Holds
     /// `ENV_LOCK` until dropped.
     fn scoped_wvr_home(dir: &std::path::Path) -> impl Drop {
-        struct Guard<'a>(std::sync::MutexGuard<'a, ()>);
+        struct Guard<'a> {
+            _lock: std::sync::MutexGuard<'a, ()>,
+        }
         impl Drop for Guard<'_> {
             fn drop(&mut self) {
                 unsafe { std::env::remove_var(crate::paths::HOME_ENV) };
@@ -375,7 +377,7 @@ mod resolve_tests {
         }
         let guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe { std::env::set_var(crate::paths::HOME_ENV, dir) };
-        Guard(guard)
+        Guard { _lock: guard }
     }
 
     fn make_repo(dir: &std::path::Path) -> String {

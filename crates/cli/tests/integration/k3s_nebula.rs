@@ -27,28 +27,28 @@ fn setup_module_repo(fixture_path: &Path) -> Result<TempDir, Box<dyn std::error:
 
     std::process::Command::new("git")
         .current_dir(root)
-        .args(&["config", "user.email", "test@example.com"])
+        .args(["config", "user.email", "test@example.com"])
         .output()?;
 
     std::process::Command::new("git")
         .current_dir(root)
-        .args(&["config", "user.name", "Test User"])
+        .args(["config", "user.name", "Test User"])
         .output()?;
 
     std::process::Command::new("git")
         .current_dir(root)
-        .args(&["add", "."])
+        .args(["add", "."])
         .output()?;
 
     std::process::Command::new("git")
         .current_dir(root)
-        .args(&["commit", "-m", "Initial commit"])
+        .args(["commit", "-m", "Initial commit"])
         .output()?;
 
     // Tag it so we can target a specific ref if needed, or just use branch name
     std::process::Command::new("git")
         .current_dir(root)
-        .args(&["tag", "v1.0.0"])
+        .args(["tag", "v1.0.0"])
         .output()?;
 
     Ok(temp_dir)

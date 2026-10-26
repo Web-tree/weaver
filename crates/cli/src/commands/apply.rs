@@ -117,7 +117,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
             &manifest,
             &app_config.inputs,
             interactive,
-            &answers_path,
+            answers_path,
             &app_config.name,
         )?;
 
@@ -125,7 +125,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         let current_keys: std::collections::HashSet<String> =
             manifest.inputs.keys().cloned().collect();
         crate::prompts::cleanup_stale_answers(
-            &answers_path,
+            answers_path,
             &app_config.name,
             &current_keys,
             interactive,

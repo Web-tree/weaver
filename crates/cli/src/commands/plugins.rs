@@ -79,7 +79,7 @@ fn execute_list() -> anyhow::Result<()> {
 
         println!(
             "{:<20} {:<15} {:<50} {:<10}",
-            name, lock.version, &lock.source, status
+            name, lock.version, lock.source, status
         );
     }
 
@@ -159,7 +159,7 @@ async fn execute_update(plugin: Option<String>, all: bool) -> anyhow::Result<()>
         config.plugins.iter().collect()
     } else if let Some(ref name) = plugin {
         if let Some(plugin_config) = config.plugins.get(name) {
-            vec![(&name, plugin_config)]
+            vec![(name, plugin_config)]
         } else {
             anyhow::bail!("Plugin '{}' not found in weaver.yaml", name);
         }
@@ -176,16 +176,16 @@ async fn execute_update(plugin: Option<String>, all: bool) -> anyhow::Result<()>
 
     for (name, plugin_config) in plugins_to_update {
         // Check if plugin is pinned to a commit hash
-        if let Some(ref git_ref) = plugin_config.git_ref {
-            if is_commit_hash(git_ref) {
-                let warning = format!(
-                    "⚠️  {} - Plugin pinned to commit hash '{}'. No update available.",
-                    name, git_ref
-                );
-                warnings.push(warning.clone());
-                println!("{}", warning);
-                continue;
-            }
+        if let Some(ref git_ref) = plugin_config.git_ref
+            && is_commit_hash(git_ref)
+        {
+            let warning = format!(
+                "⚠️  {} - Plugin pinned to commit hash '{}'. No update available.",
+                name, git_ref
+            );
+            warnings.push(warning.clone());
+            println!("{}", warning);
+            continue;
         }
 
         // Skip local path plugins

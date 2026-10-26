@@ -18,12 +18,11 @@ pub fn run(args: InitArgs) -> anyhow::Result<()> {
         anyhow::bail!("weaver.yaml already exists");
     }
 
-    if root.exists() {
-        if let Ok(entries) = std::fs::read_dir(&root) {
-            if entries.count() > 0 {
-                warn!("Initializing in a non-empty directory");
-            }
-        }
+    if root.exists()
+        && let Ok(entries) = std::fs::read_dir(&root)
+        && entries.count() > 0
+    {
+        warn!("Initializing in a non-empty directory");
     }
 
     std::fs::create_dir_all(&root)?;
