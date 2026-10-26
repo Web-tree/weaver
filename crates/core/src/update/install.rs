@@ -2,7 +2,8 @@
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
+use std::time::{Duration, Instant};
 use std::{fs, io};
 
 use super::UpdateError;
@@ -161,12 +162,9 @@ fn set_executable(_staged: &Path, _target: &Path) -> Result<(), UpdateError> {
 /// install. Catches truncated downloads, wrong-architecture assets and
 /// mislabelled release archives before they replace a working binary.
 fn verify_version(staged: &Path, expected: &semver::Version) -> Result<(), UpdateError> {
-    let output = Command::new(staged)
-        .arg("--version")
-        .output()
-        .map_err(|source| UpdateError::Unusable {
-            reason: format!("cannot execute downloaded binary: {source}"),
-        })?;
+    let output = run_version(staged).map_err(|source| UpdateError::Unusable {
+        reason: format!("cannot execute downloaded binary: {source}"),
+    })?;
 
     if !output.status.success() {
         return Err(UpdateError::Unusable {
@@ -193,6 +191,22 @@ fn verify_version(staged: &Path, expected: &semver::Version) -> Result<(), Updat
     }
 
     Ok(())
+}
+
+/// A child forked by another thread while the staged file was open for
+/// writing keeps it busy (ETXTBSY) until that child execs; wait it out.
+fn run_version(path: &Path) -> io::Result<Output> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        match Command::new(path).arg("--version").output() {
+            Err(e)
+                if e.kind() == io::ErrorKind::ExecutableFileBusy && Instant::now() < deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            result => return result,
+        }
+    }
 }
 
 /// `wvr 0.2.0` -> `0.2.0`
@@ -297,6 +311,26 @@ mod tests {
 
         let output = Command::new(&installed).arg("--version").output().unwrap();
         assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "wvr 0.2.0");
+    }
+
+    /// Linux refuses to exec a file while any process holds it open for
+    /// writing, which a child forked by another thread can do briefly.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn version_check_waits_out_a_lingering_writer() {
+        let dir = tempfile::tempdir().unwrap();
+        let staged = dir.path().join("wvr");
+        write_executable(&staged, &fake_binary("0.2.0"));
+        let writer = fs::OpenOptions::new().append(true).open(&staged).unwrap();
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            drop(writer);
+        });
+
+        let result = verify_version(&staged, &semver::Version::new(0, 2, 0));
+
+        release.join().unwrap();
+        assert!(result.is_ok(), "unexpected error: {}", result.unwrap_err());
     }
 
     #[test]

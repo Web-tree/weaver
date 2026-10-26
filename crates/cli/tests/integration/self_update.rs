@@ -31,8 +31,8 @@ fn version_flag_reports_the_crate_version() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn check_reports_an_available_release_without_installing() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v99.0.0", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
-    let installed = install_copy(&home.path().join("bin"));
+    let home = home_dir();
+    let installed = install_link(&home.path().join("bin"));
 
     let output = self_update(&installed, &server, home.path())
         .arg("--check")
@@ -57,8 +57,8 @@ async fn check_reports_an_available_release_without_installing() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn check_installs_nothing_even_with_auto_update_enabled() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v99.0.0", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
-    let installed = install_copy(&home.path().join("bin"));
+    let home = home_dir();
+    let installed = install_link(&home.path().join("bin"));
 
     let output = self_update(&installed, &server, home.path())
         .arg("--check")
@@ -78,8 +78,8 @@ async fn check_installs_nothing_even_with_auto_update_enabled() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn check_reports_up_to_date_for_an_older_release() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v0.0.1", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
-    let installed = install_copy(&home.path().join("bin"));
+    let home = home_dir();
+    let installed = install_link(&home.path().join("bin"));
 
     let output = self_update(&installed, &server, home.path())
         .arg("--check")
@@ -95,8 +95,8 @@ async fn check_reports_up_to_date_for_an_older_release() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn self_update_replaces_the_running_executable() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v99.0.0", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
-    let installed = install_copy(&home.path().join("bin"));
+    let home = home_dir();
+    let installed = install_link(&home.path().join("bin"));
 
     let output = self_update(&installed, &server, home.path())
         .arg("--yes")
@@ -110,6 +110,7 @@ async fn self_update_replaces_the_running_executable() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(reported_version(&installed), "wvr 99.0.0");
+    assert_eq!(reported_version(&wvr_bin()), own_version());
 
     // The installed version is recorded so the notice stops firing.
     let state = std::fs::read_to_string(home.path().join("update-check.json")).unwrap();
@@ -123,8 +124,8 @@ async fn installing_a_specific_tag_is_possible() {
         ReleaseFixture::new(REPO, "v50.0.0", TARGET).not_latest(),
     ])
     .await;
-    let home = tempfile::tempdir().unwrap();
-    let installed = install_copy(&home.path().join("bin"));
+    let home = home_dir();
+    let installed = install_link(&home.path().join("bin"));
 
     let output = self_update(&installed, &server, home.path())
         .args(["--tag", "v50.0.0", "--yes"])
@@ -145,8 +146,8 @@ async fn a_tampered_release_fails_without_touching_the_binary() {
         ReleaseFixture::new(REPO, "v99.0.0", TARGET).with_tampered_archive()
     ])
     .await;
-    let home = tempfile::tempdir().unwrap();
-    let installed = install_copy(&home.path().join("bin"));
+    let home = home_dir();
+    let installed = install_link(&home.path().join("bin"));
 
     let output = self_update(&installed, &server, home.path())
         .arg("--yes")
@@ -163,7 +164,7 @@ async fn a_tampered_release_fails_without_touching_the_binary() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn background_check_caches_the_latest_release() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v99.0.0", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
+    let home = home_dir();
     let project = project_dir();
 
     let output = wvr_list(&wvr_bin(), &server, home.path(), project.path())
@@ -188,7 +189,7 @@ async fn background_check_caches_the_latest_release() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn opting_out_skips_the_background_check() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v99.0.0", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
+    let home = home_dir();
     let project = project_dir();
 
     let status = wvr_list(&wvr_bin(), &server, home.path(), project.path())
@@ -208,7 +209,7 @@ async fn opting_out_skips_the_background_check() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn json_output_never_gets_an_update_notice() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v99.0.0", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
+    let home = home_dir();
     let project = project_dir();
 
     let output = wvr_list(&wvr_bin(), &server, home.path(), project.path())
@@ -226,9 +227,9 @@ async fn json_output_never_gets_an_update_notice() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn auto_update_installs_without_being_asked() {
     let server = ReleaseServer::start(&[ReleaseFixture::new(REPO, "v99.0.0", TARGET)]).await;
-    let home = tempfile::tempdir().unwrap();
+    let home = home_dir();
     let project = project_dir();
-    let installed = install_copy(&home.path().join("bin"));
+    let installed = install_link(&home.path().join("bin"));
 
     let output = wvr_list(&installed, &server, home.path(), project.path())
         .env("WVR_AUTO_UPDATE", "1")
@@ -272,11 +273,20 @@ fn wvr_bin() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_wvr"))
 }
 
-/// Copy the binary under test into `dir` so a self-update can replace it.
-fn install_copy(dir: &Path) -> PathBuf {
+/// `WVR_HOME` on the target directory's filesystem, so `install_link` works.
+fn home_dir() -> tempfile::TempDir {
+    tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap()
+}
+
+/// Hard-link the binary under test into `dir` so a self-update can replace it.
+///
+/// Never a copy: children forked by concurrent tests inherit the copy's write
+/// fd, and Linux refuses to exec a file open for writing (ETXTBSY). The update
+/// renames over the link, so the cargo-built binary is never touched.
+fn install_link(dir: &Path) -> PathBuf {
     std::fs::create_dir_all(dir).unwrap();
     let path = dir.join("wvr");
-    std::fs::copy(wvr_bin(), &path).unwrap();
+    std::fs::hard_link(wvr_bin(), &path).unwrap();
     path
 }
 
