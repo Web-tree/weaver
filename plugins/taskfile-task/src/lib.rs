@@ -43,9 +43,10 @@ fn task_exists(name: &str, cwd: &str) -> Result<bool, String> {
     }
     let listing = String::from_utf8_lossy(&r.stdout);
     // `task --list-all` prints "* <name>: ..." lines.
-    Ok(listing
-        .lines()
-        .any(|l| l.trim_start_matches("* ").starts_with(&format!("{}:", name))))
+    Ok(listing.lines().any(|l| {
+        l.trim_start_matches("* ")
+            .starts_with(&format!("{}:", name))
+    }))
 }
 
 impl Guest for Component {

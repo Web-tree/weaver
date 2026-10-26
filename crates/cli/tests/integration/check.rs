@@ -139,7 +139,10 @@ apps:
     let mut cmd = cmd();
     let assert = cmd.arg("check").current_dir(&ctx.root).assert();
 
-    assert.code(2).stdout(predicate::str::contains("FAIL")).stdout(predicate::str::contains("check1"));
+    assert
+        .code(2)
+        .stdout(predicate::str::contains("FAIL"))
+        .stdout(predicate::str::contains("check1"));
 }
 
 #[test]

@@ -62,7 +62,10 @@ impl Guest for Component {
             .map_err(|e| EnsureError::ConfigError(format!("Invalid config: {}", e)))?;
 
         if req.dry_run {
-            return Ok(format!("Would set npm script '{}' to '{}'", config.name, config.command));
+            return Ok(format!(
+                "Would set npm script '{}' to '{}'",
+                config.name, config.command
+            ));
         }
 
         let set_args = vec![

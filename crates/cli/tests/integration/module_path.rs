@@ -24,9 +24,23 @@ fn make_repo_with_module_in(root: &Path, name: &str, subdir: &str, manifest_yaml
     )
     .unwrap();
 
-    for args in [vec!["init", "-q"], vec!["add", "-A"], vec!["commit", "-q", "-m", "init"], vec!["tag", "v1"]] {
-        let out = std::process::Command::new("git").args(&args).current_dir(&dir).envs(GIT_ENVS).output().unwrap();
-        assert!(out.status.success(), "git {args:?} failed: {}", String::from_utf8_lossy(&out.stderr));
+    for args in [
+        vec!["init", "-q"],
+        vec!["add", "-A"],
+        vec!["commit", "-q", "-m", "init"],
+        vec!["tag", "v1"],
+    ] {
+        let out = std::process::Command::new("git")
+            .args(&args)
+            .current_dir(&dir)
+            .envs(GIT_ENVS)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
     }
     dir
 }
@@ -63,7 +77,10 @@ checks:
     command: "test -f README.md"
 "#,
     );
-    ctx.write_file("weaver.yaml", &weaver_yaml(&repo, "    path: \"weaver/stdmod\""));
+    ctx.write_file(
+        "weaver.yaml",
+        &weaver_yaml(&repo, "    path: \"weaver/stdmod\""),
+    );
     ctx.write_file("app/other.txt", "x\n");
 
     cmd()
@@ -90,12 +107,28 @@ fn apply_renders_templates_from_the_module_subdirectory() {
     let ctx = TestContext::new();
     let repo = make_repo_with_module_in(&ctx.root, "standards", "weaver/stdmod", "inputs: {}\n");
     std::fs::create_dir_all(repo.join("weaver/stdmod/templates")).unwrap();
-    std::fs::write(repo.join("weaver/stdmod/templates/hello.txt"), "from subdir\n").unwrap();
-    for args in [vec!["add", "-A"], vec!["commit", "-q", "-m", "tpl"], vec!["tag", "-f", "v1"]] {
-        let out = std::process::Command::new("git").args(&args).current_dir(&repo).envs(GIT_ENVS).output().unwrap();
+    std::fs::write(
+        repo.join("weaver/stdmod/templates/hello.txt"),
+        "from subdir\n",
+    )
+    .unwrap();
+    for args in [
+        vec!["add", "-A"],
+        vec!["commit", "-q", "-m", "tpl"],
+        vec!["tag", "-f", "v1"],
+    ] {
+        let out = std::process::Command::new("git")
+            .args(&args)
+            .current_dir(&repo)
+            .envs(GIT_ENVS)
+            .output()
+            .unwrap();
         assert!(out.status.success());
     }
-    ctx.write_file("weaver.yaml", &weaver_yaml(&repo, "    path: \"weaver/stdmod\""));
+    ctx.write_file(
+        "weaver.yaml",
+        &weaver_yaml(&repo, "    path: \"weaver/stdmod\""),
+    );
 
     cmd()
         .args(["apply", "--auto-approve"])
@@ -103,14 +136,20 @@ fn apply_renders_templates_from_the_module_subdirectory() {
         .current_dir(&ctx.root)
         .assert()
         .success();
-    assert_eq!(std::fs::read_to_string(ctx.root.join("app/hello.txt")).unwrap(), "from subdir\n");
+    assert_eq!(
+        std::fs::read_to_string(ctx.root.join("app/hello.txt")).unwrap(),
+        "from subdir\n"
+    );
 }
 
 #[test]
 fn a_path_escaping_the_module_repo_is_rejected() {
     let ctx = TestContext::new();
     let repo = make_repo_with_module_in(&ctx.root, "standards", "weaver/stdmod", "inputs: {}\n");
-    ctx.write_file("weaver.yaml", &weaver_yaml(&repo, "    path: \"../outside\""));
+    ctx.write_file(
+        "weaver.yaml",
+        &weaver_yaml(&repo, "    path: \"../outside\""),
+    );
 
     cmd()
         .arg("check")
@@ -125,7 +164,10 @@ fn a_path_escaping_the_module_repo_is_rejected() {
 fn a_missing_module_path_is_an_error_not_an_empty_module() {
     let ctx = TestContext::new();
     let repo = make_repo_with_module_in(&ctx.root, "standards", "weaver/stdmod", "inputs: {}\n");
-    ctx.write_file("weaver.yaml", &weaver_yaml(&repo, "    path: \"weaver/nope\""));
+    ctx.write_file(
+        "weaver.yaml",
+        &weaver_yaml(&repo, "    path: \"weaver/nope\""),
+    );
 
     cmd()
         .arg("check")
@@ -144,7 +186,11 @@ fn describe_json(ctx: &TestContext) -> serde_json::Value {
         .current_dir(&ctx.root)
         .output()
         .unwrap();
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     serde_json::from_slice(&out.stdout).unwrap()
 }
 
@@ -152,7 +198,10 @@ fn describe_json(ctx: &TestContext) -> serde_json::Value {
 fn describe_shows_the_module_path() {
     let ctx = TestContext::new();
     let repo = make_repo_with_module_in(&ctx.root, "standards", "weaver/stdmod", "inputs: {}\n");
-    ctx.write_file("weaver.yaml", &weaver_yaml(&repo, "    path: \"weaver/stdmod\""));
+    ctx.write_file(
+        "weaver.yaml",
+        &weaver_yaml(&repo, "    path: \"weaver/stdmod\""),
+    );
 
     cmd()
         .args(["describe", "app"])
@@ -170,7 +219,10 @@ fn describe_json_has_a_null_module_path_when_unset() {
     let repo = make_repo_with_module_in(&ctx.root, "standards", "weaver/stdmod", "inputs: {}\n");
     ctx.write_file("weaver.yaml", &weaver_yaml(&repo, ""));
 
-    assert_eq!(describe_json(&ctx).get("module_path"), Some(&serde_json::Value::Null));
+    assert_eq!(
+        describe_json(&ctx).get("module_path"),
+        Some(&serde_json::Value::Null)
+    );
     cmd()
         .args(["describe", "app"])
         .env("HOME", ctx.temp.path())

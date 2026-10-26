@@ -26,17 +26,37 @@ fn make_module(root: &Path, name: &str, manifest_yaml: &str) -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("weaver.module.yaml"), manifest_yaml).unwrap();
 
-    std::process::Command::new("git").args(["init", "-q"]).current_dir(&dir).output().unwrap();
-    std::process::Command::new("git").args(["add", "-A"]).current_dir(&dir).output().unwrap();
+    std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
     let out = std::process::Command::new("git")
         .args(["commit", "-q", "-m", "init"])
         .current_dir(&dir)
         .envs(GIT_ENVS)
         .output()
         .unwrap();
-    assert!(out.status.success(), "git commit failed: {}", String::from_utf8_lossy(&out.stderr));
-    let out = std::process::Command::new("git").args(["tag", "v1"]).current_dir(&dir).output().unwrap();
-    assert!(out.status.success(), "git tag failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "git commit failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let out = std::process::Command::new("git")
+        .args(["tag", "v1"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "git tag failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     dir
 }
@@ -138,7 +158,11 @@ checks:
 "#,
     );
     let commit = resolved_commit(&module_dir);
-    assert_eq!(commit.len(), 40, "expected a full 40-char sha, got {commit:?}");
+    assert_eq!(
+        commit.len(),
+        40,
+        "expected a full 40-char sha, got {commit:?}"
+    );
     let short = &commit[..8];
 
     ctx.write_file("weaver.yaml", &single_app_weaver_yaml(&module_dir, "", ""));
@@ -154,13 +178,22 @@ checks:
     let output = assert.get_output();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains("stdmod"), "module name missing from output:\n{stdout}");
-    assert!(stdout.contains(&commit), "full resolved commit missing from output:\n{stdout}");
+    assert!(
+        stdout.contains("stdmod"),
+        "module name missing from output:\n{stdout}"
+    );
+    assert!(
+        stdout.contains(&commit),
+        "full resolved commit missing from output:\n{stdout}"
+    );
     assert!(
         stdout.contains(&format!("stdmod@{short}")),
         "module@<short-sha> context label missing from output:\n{stdout}"
     );
-    assert!(stdout.contains("no-todo-marker"), "rule id missing from output:\n{stdout}");
+    assert!(
+        stdout.contains("no-todo-marker"),
+        "rule id missing from output:\n{stdout}"
+    );
 }
 
 /// R8: resolve the module once (via `apply`), then make the module's source
@@ -194,7 +227,10 @@ checks:
         .current_dir(&ctx.root)
         .assert()
         .success();
-    assert!(ctx.root.join("weaver.lock").exists(), "apply should have written weaver.lock");
+    assert!(
+        ctx.root.join("weaver.lock").exists(),
+        "apply should have written weaver.lock"
+    );
 
     // Make the module's source repo unavailable.
     std::fs::rename(&module_dir, ctx.root.join("stdmod-moved-away")).unwrap();
@@ -222,7 +258,12 @@ fn unresolvable_module_fails_the_check_run_instead_of_being_skipped() {
     ctx.write_file("weaver.yaml", &single_app_weaver_yaml(&module_dir, "", ""));
     ctx.write_file("app/notes.txt", "all good\n");
 
-    let assert = cmd().arg("check").env("HOME", ctx.temp.path()).current_dir(&ctx.root).assert().failure();
+    let assert = cmd()
+        .arg("check")
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .failure();
 
     let output = assert.get_output();
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -259,20 +300,34 @@ checks:
     );
     ctx.write_file("app/.gitkeep", "");
 
-    let assert = cmd().arg("check").env("HOME", ctx.temp.path()).current_dir(&ctx.root).assert().success();
+    let assert = cmd()
+        .arg("check")
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .success();
 
     let output = assert.get_output();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Workspace check, attributed to "Global".
     assert!(stdout.contains("workspace-rule"), "{stdout}");
-    assert!(stdout.contains("Global"), "workspace context missing:\n{stdout}");
+    assert!(
+        stdout.contains("Global"),
+        "workspace context missing:\n{stdout}"
+    );
     // App check, attributed to the app name.
     assert!(stdout.contains("app-rule"), "{stdout}");
     // Module check, attributed to `module@<sha> (app)`.
     assert!(stdout.contains("module-rule"), "{stdout}");
-    assert!(stdout.contains("stdmod@"), "module context missing:\n{stdout}");
-    assert!(stdout.contains("(app)"), "module check not attributed to its consuming app:\n{stdout}");
+    assert!(
+        stdout.contains("stdmod@"),
+        "module context missing:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("(app)"),
+        "module check not attributed to its consuming app:\n{stdout}"
+    );
 }
 
 /// Two apps consuming the same module run its checks once per app, each
@@ -315,7 +370,12 @@ apps:
     ctx.write_file("app-one/.gitkeep", "");
     ctx.write_file("app-two/.gitkeep", "");
 
-    let assert = cmd().arg("check").env("HOME", ctx.temp.path()).current_dir(&ctx.root).assert().success();
+    let assert = cmd()
+        .arg("check")
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .success();
 
     let output = assert.get_output();
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -366,13 +426,23 @@ apps:
     );
     ctx.write_file("app/.gitkeep", "");
 
-    let assert =
-        cmd().arg("check").env("HOME", ctx.temp.path()).current_dir(&ctx.root).assert().failure();
+    let assert = cmd()
+        .arg("check")
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .failure();
 
     let output = assert.get_output();
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("app"), "app name missing from error:\n{stderr}");
-    assert!(stderr.contains("standrds"), "the typo'd module name missing from error:\n{stderr}");
+    assert!(
+        stderr.contains("app"),
+        "app name missing from error:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("standrds"),
+        "the typo'd module name missing from error:\n{stderr}"
+    );
     assert!(
         stderr.contains("standards"),
         "the declared (available) module name missing from error:\n{stderr}"
@@ -402,19 +472,35 @@ apps:
 "#,
     );
 
-    let assert =
-        cmd().arg("check").env("HOME", ctx.temp.path()).current_dir(&ctx.root).assert().success();
+    let assert = cmd()
+        .arg("check")
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .assert()
+        .success();
 
     let output = assert.get_output();
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     // The app's own check still ran.
-    assert!(stdout.contains("app-rule"), "app-level check did not run:\n{stdout}");
+    assert!(
+        stdout.contains("app-rule"),
+        "app-level check did not run:\n{stdout}"
+    );
     assert!(stdout.contains("PASS"), "{stdout}");
 
     // But the undeclared module reference is surfaced, not silent.
-    assert!(stderr.to_lowercase().contains("warning"), "no warning emitted:\n{stderr}");
-    assert!(stderr.contains("app"), "app name missing from warning:\n{stderr}");
-    assert!(stderr.contains("standrds"), "module name missing from warning:\n{stderr}");
+    assert!(
+        stderr.to_lowercase().contains("warning"),
+        "no warning emitted:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("app"),
+        "app name missing from warning:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("standrds"),
+        "module name missing from warning:\n{stderr}"
+    );
 }

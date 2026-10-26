@@ -1,5 +1,5 @@
-use weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
 use std::path::Path;
+use weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
 
 /// Loads the ai-patch ensure plugin and exercises `plan` through the
 /// `ensure-provider` world. Uses `verify_command: "true"` so the plugin
@@ -18,7 +18,9 @@ fn test_ai_patch_plugin_plan_already_satisfied() {
         return;
     }
 
-    let plugin = engine.load_plugin(wasm_path).expect("failed to load plugin");
+    let plugin = engine
+        .load_plugin(wasm_path)
+        .expect("failed to load plugin");
 
     let config_json = r#"{"prompt": "add a license", "verify_command": "true", "tool": ""}"#;
     let plan = plugin
@@ -30,5 +32,8 @@ fn test_ai_patch_plugin_plan_already_satisfied() {
         "unexpected plan: {}",
         plan.description
     );
-    assert!(plan.actions.is_empty(), "expected no actions when satisfied");
+    assert!(
+        plan.actions.is_empty(),
+        "expected no actions when satisfied"
+    );
 }

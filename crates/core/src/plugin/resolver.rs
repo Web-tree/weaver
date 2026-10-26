@@ -493,8 +493,7 @@ mod tests {
         fs::create_dir_all(&plugin_dir).expect("mkdir");
         fs::write(plugin_dir.join("plugin.wasm"), b"fake-wasm-bytes").expect("write wasm");
 
-        let mut resolver =
-            PluginResolver::new(project_dir.path().to_path_buf()).expect("resolver");
+        let mut resolver = PluginResolver::new(project_dir.path().to_path_buf()).expect("resolver");
         let mut plugins_config = HashMap::new();
         plugins_config.insert(
             "fs-symlink".to_string(),
@@ -527,8 +526,7 @@ mod tests {
     #[tokio::test]
     async fn resolve_ensure_type_without_override_falls_back_to_registry() {
         let project_dir = TempDir::new().expect("tempdir");
-        let mut resolver =
-            PluginResolver::new(project_dir.path().to_path_buf()).expect("resolver");
+        let mut resolver = PluginResolver::new(project_dir.path().to_path_buf()).expect("resolver");
         resolver.set_offline(true);
 
         let err = resolver

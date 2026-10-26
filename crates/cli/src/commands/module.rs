@@ -1,10 +1,10 @@
 use clap::{Args, Subcommand};
 use comfy_table::Table;
+use serde_json::json;
+use std::path::{Path, PathBuf};
 use weaver_core::config::{ModuleConfig, WeaverConfig};
 use weaver_core::lockfile::Lockfile;
 use weaver_core::module::ModuleResolver;
-use serde_json::json;
-use std::path::{Path, PathBuf};
 
 #[derive(Args)]
 pub struct ModuleArgs {
@@ -110,7 +110,10 @@ fn run_add(args: AddArgs) -> anyhow::Result<()> {
     let config_path = Path::new("weaver.yaml");
     let mut config = WeaverConfig::load(config_path)?;
 
-    let name = args.name.clone().unwrap_or_else(|| derive_name(&args.source));
+    let name = args
+        .name
+        .clone()
+        .unwrap_or_else(|| derive_name(&args.source));
 
     // Idempotent: if the module already exists, update it in place; otherwise
     // append a new entry. Resolve/pin and file writes happen the same way in
@@ -136,7 +139,11 @@ fn run_add(args: AddArgs) -> anyhow::Result<()> {
     // Resolve + pin the commit (also clones into the global store) before
     // writing anything, so a bad source, ref or path leaves the files alone.
     let mut resolver = ModuleResolver::new(None)?;
-    let module = config.modules.iter().find(|m| m.name == name).expect("module was just upserted");
+    let module = config
+        .modules
+        .iter()
+        .find(|m| m.name == name)
+        .expect("module was just upserted");
     resolver.resolve_module(module)?;
 
     let f = std::fs::File::create(config_path)?;
@@ -159,7 +166,10 @@ fn run_add(args: AddArgs) -> anyhow::Result<()> {
     std::fs::write(lock_path, serde_yml::to_string(&lock)?)?;
 
     if is_update {
-        println!("Updated module '{}' ({} @ {})", name, args.source, args.r#ref);
+        println!(
+            "Updated module '{}' ({} @ {})",
+            name, args.source, args.r#ref
+        );
     } else {
         println!("Added module '{}' ({} @ {})", name, args.source, args.r#ref);
     }

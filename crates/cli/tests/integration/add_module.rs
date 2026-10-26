@@ -16,7 +16,11 @@ fn make_module_repo(dir: &Path) -> String {
         vec!["commit", "-m", "init"],
         vec!["tag", "v1"],
     ] {
-        std::process::Command::new("git").args(&args).current_dir(dir).output().unwrap();
+        std::process::Command::new("git")
+            .args(&args)
+            .current_dir(dir)
+            .output()
+            .unwrap();
     }
     // Second commit + tag so update-to-a-different-ref can be exercised.
     std::fs::write(dir.join("README.md"), "v2\n").unwrap();
@@ -25,7 +29,11 @@ fn make_module_repo(dir: &Path) -> String {
         vec!["commit", "-m", "second"],
         vec!["tag", "v2"],
     ] {
-        std::process::Command::new("git").args(&args).current_dir(dir).output().unwrap();
+        std::process::Command::new("git")
+            .args(&args)
+            .current_dir(dir)
+            .output()
+            .unwrap();
     }
     format!("file://{}", dir.display())
 }
@@ -88,14 +96,22 @@ fn add_module_is_idempotent_updates_existing() {
 
     let weaver = ctx.read_file("weaver.yaml");
     // Exactly one entry for the module, regardless of serializer quoting.
-    let count = weaver.matches("name: standards").count() + weaver.matches("name: \"standards\"").count();
-    assert_eq!(count, 1, "expected exactly one 'standards' module entry, got {count}\n{weaver}");
+    let count =
+        weaver.matches("name: standards").count() + weaver.matches("name: \"standards\"").count();
+    assert_eq!(
+        count, 1,
+        "expected exactly one 'standards' module entry, got {count}\n{weaver}"
+    );
 
     // Re-running with a different ref updates the existing entry's ref.
     run_add("v2");
     let weaver = ctx.read_file("weaver.yaml");
-    let count = weaver.matches("name: standards").count() + weaver.matches("name: \"standards\"").count();
-    assert_eq!(count, 1, "expected still exactly one entry after update, got {count}\n{weaver}");
+    let count =
+        weaver.matches("name: standards").count() + weaver.matches("name: \"standards\"").count();
+    assert_eq!(
+        count, 1,
+        "expected still exactly one entry after update, got {count}\n{weaver}"
+    );
     assert!(
         weaver.contains("ref: v2") || weaver.contains("ref: \"v2\""),
         "expected ref updated to v2\n{weaver}"
@@ -118,7 +134,11 @@ fn make_repo_with_module_in_subdir(dir: &Path) -> String {
         vec!["commit", "-m", "init"],
         vec!["tag", "v1"],
     ] {
-        std::process::Command::new("git").args(&args).current_dir(dir).output().unwrap();
+        std::process::Command::new("git")
+            .args(&args)
+            .current_dir(dir)
+            .output()
+            .unwrap();
     }
     format!("file://{}", dir.display())
 }
@@ -130,7 +150,17 @@ fn add_module_with_path_records_it_in_config_and_lock() {
     let url = make_repo_with_module_in_subdir(&ctx.root.join("std-repo"));
 
     cmd()
-        .args(["module", "add", &url, "--name", "a", "--ref", "v1", "--path", "modules/a"])
+        .args([
+            "module",
+            "add",
+            &url,
+            "--name",
+            "a",
+            "--ref",
+            "v1",
+            "--path",
+            "modules/a",
+        ])
         .env("HOME", ctx.temp.path())
         .current_dir(&ctx.root)
         .assert()
@@ -149,13 +179,23 @@ fn add_module_updates_the_path_of_an_existing_entry() {
     let url = make_repo_with_module_in_subdir(&ctx.root.join("std-repo"));
     std::fs::create_dir_all(ctx.root.join("std-repo/modules/b/templates")).unwrap();
     std::fs::write(ctx.root.join("std-repo/modules/b/templates/x.txt"), "x\n").unwrap();
-    for args in [vec!["add", "."], vec!["commit", "-m", "b"], vec!["tag", "-f", "v1"]] {
-        std::process::Command::new("git").args(&args).current_dir(ctx.root.join("std-repo")).output().unwrap();
+    for args in [
+        vec!["add", "."],
+        vec!["commit", "-m", "b"],
+        vec!["tag", "-f", "v1"],
+    ] {
+        std::process::Command::new("git")
+            .args(&args)
+            .current_dir(ctx.root.join("std-repo"))
+            .output()
+            .unwrap();
     }
 
     for sub in ["modules/a", "modules/b"] {
         cmd()
-            .args(["module", "add", &url, "--name", "std", "--ref", "v1", "--path", sub])
+            .args([
+                "module", "add", &url, "--name", "std", "--ref", "v1", "--path", sub,
+            ])
             .env("HOME", ctx.temp.path())
             .current_dir(&ctx.root)
             .assert()
@@ -163,7 +203,10 @@ fn add_module_updates_the_path_of_an_existing_entry() {
     }
 
     let weaver = ctx.read_file("weaver.yaml");
-    assert!(weaver.contains("path: modules/b") && !weaver.contains("modules/a"), "{weaver}");
+    assert!(
+        weaver.contains("path: modules/b") && !weaver.contains("modules/a"),
+        "{weaver}"
+    );
 }
 
 #[test]
@@ -174,7 +217,17 @@ fn add_module_with_a_bad_path_fails_without_touching_files() {
     let url = make_repo_with_module_in_subdir(&ctx.root.join("std-repo"));
 
     cmd()
-        .args(["module", "add", &url, "--name", "a", "--ref", "v1", "--path", "modules/nope"])
+        .args([
+            "module",
+            "add",
+            &url,
+            "--name",
+            "a",
+            "--ref",
+            "v1",
+            "--path",
+            "modules/nope",
+        ])
         .env("HOME", ctx.temp.path())
         .current_dir(&ctx.root)
         .assert()

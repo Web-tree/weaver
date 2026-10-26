@@ -114,7 +114,9 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
 
         for check in &app.checks {
             tasks.push(Task {
-                source: CheckSource::App { app: app.name.clone() },
+                source: CheckSource::App {
+                    app: app.name.clone(),
+                },
                 check: check.clone(),
                 repo_root: workspace_root.clone(),
             });
@@ -156,7 +158,8 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
         };
 
         if !resolved_modules.contains_key(&module_config.name) {
-            let (module_path, resolved_commit) = resolve_module_for_check(&mut resolver, module_config)?;
+            let (module_path, resolved_commit) =
+                resolve_module_for_check(&mut resolver, module_config)?;
             // Under `--json`, stdout must carry the JSON report and nothing
             // else (R22) -- this line is presentation, not the report
             // itself (the resolved commit is already on every module
@@ -171,8 +174,9 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
             resolved_modules.insert(module_config.name.clone(), (resolved_commit, manifest));
         }
 
-        let (resolved_commit, manifest) =
-            resolved_modules.get(&module_config.name).expect("just inserted above");
+        let (resolved_commit, manifest) = resolved_modules
+            .get(&module_config.name)
+            .expect("just inserted above");
 
         // Module checks run once per consuming app, with `cwd` resolved
         // relative to that app's own path (R1) -- so a module check can
@@ -248,7 +252,10 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
     }
 
     if other_failures > 0 {
-        eprintln!("{} warn/info check(s) did not pass (not failing the gate)", other_failures);
+        eprintln!(
+            "{} warn/info check(s) did not pass (not failing the gate)",
+            other_failures
+        );
     }
 
     Ok(ExitCode::Success)
@@ -258,7 +265,9 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
 /// before `--json` existed.
 fn print_table(results: &[CheckResult]) {
     let mut table = Table::new();
-    table.set_header(vec!["Context", "Check", "Rule ID", "Severity", "Status", "Message"]);
+    table.set_header(vec![
+        "Context", "Check", "Rule ID", "Severity", "Status", "Message",
+    ]);
 
     for result in results {
         let status_cell = match result.status {
@@ -318,11 +327,18 @@ fn print_json_report(tasks: &[Task], results: &[CheckResult]) {
         });
     }
 
-    let report = JsonReport { version: 1, summary, results: json_results };
+    let report = JsonReport {
+        version: 1,
+        summary,
+        results: json_results,
+    };
     // `serde_json::to_string` cannot fail for these plain-data types (no
     // maps with non-string keys, no `f32`/`f64` NaN/inf); `expect` documents
     // that rather than threading a spurious `Result` through a print path.
-    println!("{}", serde_json::to_string(&report).expect("JsonReport always serializes"));
+    println!(
+        "{}",
+        serde_json::to_string(&report).expect("JsonReport always serializes")
+    );
 }
 
 /// Resolve a module for `check`, preferring the lockfile's pin and the

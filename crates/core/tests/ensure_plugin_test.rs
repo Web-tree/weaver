@@ -1,5 +1,5 @@
-use weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
 use std::path::Path;
+use weaver_core::plugin::ensure_wasm::EnsurePluginEngine;
 
 #[test]
 fn test_load_npm_script_plugin() {

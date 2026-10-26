@@ -160,10 +160,8 @@ fn run_example(example_dir: &Path, settings: &ExampleSettings) -> ExampleResult 
         .output()
         .expect("failed to execute wvr");
 
-    let expect_failure = settings.expect_failure
-        || settings
-            .expected_exit_code
-            .is_some_and(|code| code != 0);
+    let expect_failure =
+        settings.expect_failure || settings.expected_exit_code.is_some_and(|code| code != 0);
 
     if output.status.success() == expect_failure {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -350,7 +348,6 @@ fn apply_custom_assertion(root: &Path, assertion: &CustomAssertion) -> Result<()
         }
     }
 }
-
 
 fn prepare_module_sources(before_workspace: &Path) {
     let config_path = before_workspace.join("weaver.yaml");

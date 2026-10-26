@@ -131,8 +131,9 @@ impl EnsureFileMdSection {
     fn resolved_content(&self, ctx: &EnsureContext) -> anyhow::Result<String> {
         if let Some(rel) = &self.content_from_template {
             let p = ctx.module_path.join(rel);
-            let src = std::fs::read_to_string(&p)
-                .map_err(|e| anyhow::anyhow!("cannot read section template {}: {e}", p.display()))?;
+            let src = std::fs::read_to_string(&p).map_err(|e| {
+                anyhow::anyhow!("cannot read section template {}: {e}", p.display())
+            })?;
             let engine = TemplateEngine::new()?;
             engine.render(&src, &ctx.tera_context)
         } else {
@@ -304,14 +305,21 @@ mod tests {
             out2,
             "# Title\n\nbody\n\n<!-- rw:section id=\"recent-changes\" -->\n- three\n<!-- rw:endsection id=\"recent-changes\" -->\n"
         );
-        assert_eq!(super::upsert_block_marker(&out2, "recent-changes", "- three"), out2);
+        assert_eq!(
+            super::upsert_block_marker(&out2, "recent-changes", "- three"),
+            out2
+        );
     }
 
     #[test]
     fn block_marker_swapped_markers_append_without_duplicating_content() {
         let input = "<!-- rw:endsection id=\"x\" -->\nstray\n<!-- rw:section id=\"x\" -->\n";
         let out = super::upsert_block_marker(input, "x", "new");
-        assert_eq!(out.matches("stray").count(), 1, "content between swapped markers must not be duplicated");
+        assert_eq!(
+            out.matches("stray").count(),
+            1,
+            "content between swapped markers must not be duplicated"
+        );
         assert!(out.contains("<!-- rw:section id=\"x\" -->\nnew\n<!-- rw:endsection id=\"x\" -->"));
     }
 
@@ -352,14 +360,20 @@ mod tests {
             "- kept change\n",
             "<!-- rw:endsection id=\"recent-changes\" -->\n",
         );
-        let out = super::upsert_heading(input, &["Skills".to_string()], 2, "new skills body\n\n### Invocation order\n\n1. one\n2. two");
+        let out = super::upsert_heading(
+            input,
+            &["Skills".to_string()],
+            2,
+            "new skills body\n\n### Invocation order\n\n1. one\n2. two",
+        );
 
         assert!(
             out.contains("<!-- rw:section id=\"recent-changes\" -->\n- kept change\n<!-- rw:endsection id=\"recent-changes\" -->"),
             "block-marker region must survive a heading upsert with no following heading, got:\n{out}"
         );
         assert_eq!(
-            out.matches("<!-- rw:section id=\"recent-changes\" -->").count(),
+            out.matches("<!-- rw:section id=\"recent-changes\" -->")
+                .count(),
             1,
             "block-marker region must not be duplicated"
         );
@@ -377,7 +391,9 @@ mod tests {
     #[test]
     fn creates_missing_file_and_is_idempotent() {
         let dir = tempdir().unwrap();
-        let e = EnsureFileExists { dest: "sub/new.txt".into() };
+        let e = EnsureFileExists {
+            dest: "sub/new.txt".into(),
+        };
         e.execute(&ctx(dir.path().to_path_buf())).unwrap();
         let p = dir.path().join("sub/new.txt");
         assert!(p.exists());
@@ -398,12 +414,18 @@ mod tests {
 
         let e = EnsureFileMdSection {
             file: "AGENTS.md".into(),
-            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            selector: MdSelector::BlockMarker {
+                id: "recent-changes".into(),
+            },
             content: Some("- one".into()),
             content_from_template: None,
         };
         let plan = e.plan(&ctx(dir.path().to_path_buf())).unwrap();
-        assert!(plan.actions.is_empty(), "converged file must report zero actions, got {:?}", plan.actions);
+        assert!(
+            plan.actions.is_empty(),
+            "converged file must report zero actions, got {:?}",
+            plan.actions
+        );
         assert!(!plan.description.is_empty());
     }
 
@@ -419,12 +441,17 @@ mod tests {
 
         let e = EnsureFileMdSection {
             file: "AGENTS.md".into(),
-            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            selector: MdSelector::BlockMarker {
+                id: "recent-changes".into(),
+            },
             content: Some("- new".into()),
             content_from_template: None,
         };
         let plan = e.plan(&ctx(dir.path().to_path_buf())).unwrap();
-        assert!(!plan.actions.is_empty(), "drifted file must report a non-empty action list");
+        assert!(
+            !plan.actions.is_empty(),
+            "drifted file must report a non-empty action list"
+        );
     }
 
     #[test]
@@ -432,12 +459,17 @@ mod tests {
         let dir = tempdir().unwrap();
         let e = EnsureFileMdSection {
             file: "AGENTS.md".into(),
-            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            selector: MdSelector::BlockMarker {
+                id: "recent-changes".into(),
+            },
             content: Some("- one".into()),
             content_from_template: None,
         };
         let plan = e.plan(&ctx(dir.path().to_path_buf())).unwrap();
-        assert!(!plan.actions.is_empty(), "missing file must report a non-empty action list");
+        assert!(
+            !plan.actions.is_empty(),
+            "missing file must report a non-empty action list"
+        );
     }
 
     #[test]
@@ -456,7 +488,9 @@ mod tests {
 
         let e = EnsureFileMdSection {
             file: "AGENTS.md".into(),
-            selector: MdSelector::BlockMarker { id: "recent-changes".into() },
+            selector: MdSelector::BlockMarker {
+                id: "recent-changes".into(),
+            },
             content: Some("- one".into()),
             content_from_template: None,
         };
@@ -494,7 +528,11 @@ mod tests {
                 tera_context: tc,
             })
             .unwrap();
-        assert!(plan.actions.is_empty(), "converged file must report zero actions, got {:?}", plan.actions);
+        assert!(
+            plan.actions.is_empty(),
+            "converged file must report zero actions, got {:?}",
+            plan.actions
+        );
         assert!(!plan.description.is_empty());
     }
 
@@ -524,7 +562,10 @@ mod tests {
                 tera_context: tc,
             })
             .unwrap();
-        assert!(!plan.actions.is_empty(), "drifted file must report a non-empty action list");
+        assert!(
+            !plan.actions.is_empty(),
+            "drifted file must report a non-empty action list"
+        );
     }
 
     #[test]
@@ -552,7 +593,10 @@ mod tests {
                 tera_context: tc,
             })
             .unwrap();
-        assert!(!plan.actions.is_empty(), "missing destination file must report a non-empty action list");
+        assert!(
+            !plan.actions.is_empty(),
+            "missing destination file must report a non-empty action list"
+        );
     }
 
     #[test]

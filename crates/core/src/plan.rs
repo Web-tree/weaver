@@ -208,10 +208,8 @@ mod tests {
             planned_inputs: BTreeMap::from([("a.k".into(), json!(1))]),
             changes: vec![],
         };
-        let current = BTreeMap::from([
-            ("a.k".into(), json!(1)),
-            ("b.unrelated".into(), json!("x")),
-        ]);
+        let current =
+            BTreeMap::from([("a.k".into(), json!(1)), ("b.unrelated".into(), json!("x"))]);
         assert!(plan.verify_against_inputs(&current).is_ok());
     }
 

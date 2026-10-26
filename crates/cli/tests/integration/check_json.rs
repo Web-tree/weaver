@@ -26,17 +26,37 @@ fn make_module(root: &Path, name: &str, manifest_yaml: &str) -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("weaver.module.yaml"), manifest_yaml).unwrap();
 
-    std::process::Command::new("git").args(["init", "-q"]).current_dir(&dir).output().unwrap();
-    std::process::Command::new("git").args(["add", "-A"]).current_dir(&dir).output().unwrap();
+    std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
     let out = std::process::Command::new("git")
         .args(["commit", "-q", "-m", "init"])
         .current_dir(&dir)
         .envs(GIT_ENVS)
         .output()
         .unwrap();
-    assert!(out.status.success(), "git commit failed: {}", String::from_utf8_lossy(&out.stderr));
-    let out = std::process::Command::new("git").args(["tag", "v1"]).current_dir(&dir).output().unwrap();
-    assert!(out.status.success(), "git tag failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "git commit failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let out = std::process::Command::new("git")
+        .args(["tag", "v1"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "git tag failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     dir
 }
@@ -59,7 +79,13 @@ fn resolved_commit(module_dir: &Path) -> String {
 /// anything beyond the one document (trailing bytes after it).
 fn run_check_json(ctx: &TestContext) -> (Value, std::process::Output) {
     let mut c = cmd();
-    let output = c.arg("check").arg("--json").env("HOME", ctx.temp.path()).current_dir(&ctx.root).output().unwrap();
+    let output = c
+        .arg("check")
+        .arg("--json")
+        .env("HOME", ctx.temp.path())
+        .current_dir(&ctx.root)
+        .output()
+        .unwrap();
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     // `serde_json::from_str` fails if anything but trailing whitespace
@@ -149,7 +175,11 @@ apps:
     ctx.write_file("app/notes.txt", "TODO: fix this\n");
 
     let (value, output) = run_check_json(&ctx);
-    assert_eq!(output.status.code(), Some(2), "error-severity failure must still exit 2 under --json");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "error-severity failure must still exit 2 under --json"
+    );
 
     let results = value["results"].as_array().unwrap();
     let result = results
@@ -169,7 +199,10 @@ apps:
     assert_eq!(full_commit.len(), 40);
     assert!(result["observed"].as_str().unwrap().contains("exit code"));
     assert!(result["expected"].as_str().unwrap().contains("exit code 0"));
-    assert_eq!(result["remediate"], "remove TODO markers from tracked files");
+    assert_eq!(
+        result["remediate"],
+        "remove TODO markers from tracked files"
+    );
 }
 
 #[test]
@@ -230,6 +263,9 @@ apps:
     );
 
     let (value, output) = run_check_json(&ctx);
-    assert!(output.status.success(), "warn-only failure must exit 0, got: {output:?}");
+    assert!(
+        output.status.success(),
+        "warn-only failure must exit 0, got: {output:?}"
+    );
     assert_eq!(value["summary"]["gate_failures"], 0);
 }

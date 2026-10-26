@@ -55,10 +55,7 @@ async fn build_plugin_ensure(
     use std::sync::Arc;
 
     let resolver = plugin_resolver.ok_or_else(|| {
-        anyhow::anyhow!(
-            "plugin resolver required for ensure type '{}'",
-            p.type_name
-        )
+        anyhow::anyhow!("plugin resolver required for ensure type '{}'", p.type_name)
     })?;
     let resolved = resolver.resolve_ensure_type(&p.type_name).await?;
 
@@ -74,7 +71,8 @@ async fn build_plugin_ensure(
     let config_json = serde_json::to_string(&obj)?;
 
     Ok(Box::new(plugin_wrapper::EnsurePluginWrapper::new(
-        plugin, config_json,
+        plugin,
+        config_json,
     )))
 }
 

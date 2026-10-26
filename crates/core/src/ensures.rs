@@ -15,19 +15,31 @@ pub fn apply_ensure(app_root: &Path, ensure: &EnsureSpec) -> anyhow::Result<()> 
             name,
             Value::String(value.clone()),
         ),
-        EnsureSpec::NpmDep { file, name, version } => ensure_json_key(
+        EnsureSpec::NpmDep {
+            file,
+            name,
+            version,
+        } => ensure_json_key(
             &app_root.join(file),
             &["dependencies"],
             name,
             Value::String(version.clone()),
         ),
-        EnsureSpec::NpmDevDep { file, name, version } => ensure_json_key(
+        EnsureSpec::NpmDevDep {
+            file,
+            name,
+            version,
+        } => ensure_json_key(
             &app_root.join(file),
             &["devDependencies"],
             name,
             Value::String(version.clone()),
         ),
-        EnsureSpec::NpmEngine { file, name, version } => ensure_json_key(
+        EnsureSpec::NpmEngine {
+            file,
+            name,
+            version,
+        } => ensure_json_key(
             &app_root.join(file),
             &["engines"],
             name,

@@ -108,7 +108,11 @@ mod tests {
     fn test_validate_type_mismatch() {
         let err = validate_input_type("port", &Value::String("not_a_number".into()), "number");
         assert!(err.is_err());
-        assert!(err.unwrap_err().to_string().contains("expected type 'number'"));
+        assert!(
+            err.unwrap_err()
+                .to_string()
+                .contains("expected type 'number'")
+        );
     }
 
     #[test]
@@ -120,10 +124,7 @@ mod tests {
 
     #[test]
     fn test_validate_list_of_strings_ok() {
-        let v = Value::Sequence(vec![
-            Value::String("a".into()),
-            Value::String("b".into()),
-        ]);
+        let v = Value::Sequence(vec![Value::String("a".into()), Value::String("b".into())]);
         assert!(validate_input_type("ports", &v, "list(string)").is_ok());
     }
 

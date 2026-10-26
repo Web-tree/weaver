@@ -46,9 +46,7 @@ pub enum CheckSource {
     /// `checks:` list.
     Workspace,
     /// Declared on a specific app's `checks:` list.
-    App {
-        app: String,
-    },
+    App { app: String },
     /// Inherited from a module's manifest `checks:` (R1), evaluated once per
     /// consuming app so a module check can assert about the app it
     /// configures.
@@ -70,7 +68,11 @@ impl CheckSource {
         match self {
             CheckSource::Workspace => "Global".to_string(),
             CheckSource::App { app } => app.clone(),
-            CheckSource::Module { module, resolved_commit, app } => {
+            CheckSource::Module {
+                module,
+                resolved_commit,
+                app,
+            } => {
                 let short = &resolved_commit[..resolved_commit.len().min(8)];
                 format!("{module}@{short} ({app})")
             }
@@ -118,7 +120,12 @@ pub struct CheckResult {
 }
 
 impl CheckResult {
-    fn new(check: &CheckDef, status: Status, observed: impl Into<String>, source: CheckSource) -> Self {
+    fn new(
+        check: &CheckDef,
+        status: Status,
+        observed: impl Into<String>,
+        source: CheckSource,
+    ) -> Self {
         let id = check.id.clone().unwrap_or_else(|| check.name.clone());
         let qualified_id = source.qualify(&id);
         Self {
@@ -188,7 +195,12 @@ pub async fn run_check(check: &CheckDef, repo_root: &Path, source: CheckSource) 
         Some(secs) => match tokio::time::timeout(Duration::from_secs(secs), run).await {
             Ok(result) => result,
             Err(_elapsed) => {
-                return CheckResult::new(check, Status::Error, format!("timed out after {secs}s"), source);
+                return CheckResult::new(
+                    check,
+                    Status::Error,
+                    format!("timed out after {secs}s"),
+                    source,
+                );
             }
         },
         None => run.await,
@@ -197,7 +209,12 @@ pub async fn run_check(check: &CheckDef, repo_root: &Path, source: CheckSource) 
     let output = match output {
         Ok(output) => output,
         Err(err) => {
-            return CheckResult::new(check, Status::Error, format!("failed to run command: {err}"), source);
+            return CheckResult::new(
+                check,
+                Status::Error,
+                format!("failed to run command: {err}"),
+                source,
+            );
         }
     };
 
@@ -229,11 +246,19 @@ pub async fn run_check(check: &CheckDef, repo_root: &Path, source: CheckSource) 
     if let Some(re) = &matcher
         && !re.is_match(stdout)
     {
-        problems.push(format!("stdout did not match /{}/", check.stdout_matches.as_deref().unwrap_or("")));
+        problems.push(format!(
+            "stdout did not match /{}/",
+            check.stdout_matches.as_deref().unwrap_or("")
+        ));
     }
 
     if problems.is_empty() {
-        CheckResult::new(check, Status::Pass, format!("exit code {exit_code}"), source)
+        CheckResult::new(
+            check,
+            Status::Pass,
+            format!("exit code {exit_code}"),
+            source,
+        )
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let detail = if !stderr.trim().is_empty() {
@@ -353,7 +378,11 @@ mod tests {
         assert_eq!(result.status, Status::Fail);
         // The diagnostic must show precisely what was compared against the
         // pattern -- never a value the comparison itself disagrees with.
-        assert!(result.observed.contains("v1.2.3"), "observed: {}", result.observed);
+        assert!(
+            result.observed.contains("v1.2.3"),
+            "observed: {}",
+            result.observed
+        );
         assert!(
             !result.observed.contains("v1.2.3\n"),
             "observed retained the trailing newline that was stripped before matching: {}",
@@ -394,7 +423,11 @@ mod tests {
         check.timeout = Some(1);
         let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
         assert_eq!(result.status, Status::Error);
-        assert!(result.observed.contains("timed out"), "observed was: {}", result.observed);
+        assert!(
+            result.observed.contains("timed out"),
+            "observed was: {}",
+            result.observed
+        );
     }
 
     #[tokio::test]
@@ -406,12 +439,20 @@ mod tests {
         let mut check = base_check("test -f marker.txt");
         check.cwd = None;
         let result = run_check(&check, dir.path(), CheckSource::Workspace).await;
-        assert_eq!(result.status, Status::Pass, "expected marker.txt to be found in repo root");
+        assert_eq!(
+            result.status,
+            Status::Pass,
+            "expected marker.txt to be found in repo root"
+        );
 
         let mut check_in_sub = base_check("test -f marker.txt");
         check_in_sub.cwd = Some("sub".to_string());
         let result = run_check(&check_in_sub, dir.path(), CheckSource::Workspace).await;
-        assert_eq!(result.status, Status::Fail, "marker.txt should not be visible from sub/");
+        assert_eq!(
+            result.status,
+            Status::Fail,
+            "marker.txt should not be visible from sub/"
+        );
     }
 
     #[tokio::test]
@@ -433,7 +474,9 @@ mod tests {
 
     #[test]
     fn app_context_label_is_the_app_name() {
-        let source = CheckSource::App { app: "billing".to_string() };
+        let source = CheckSource::App {
+            app: "billing".to_string(),
+        };
         assert_eq!(source.context_label(), "billing");
     }
 
@@ -462,7 +505,9 @@ mod tests {
     #[test]
     fn workspace_and_app_ids_are_unqualified() {
         assert_eq!(CheckSource::Workspace.qualify("no-todo"), "no-todo");
-        let app_source = CheckSource::App { app: "billing".to_string() };
+        let app_source = CheckSource::App {
+            app: "billing".to_string(),
+        };
         assert_eq!(app_source.qualify("no-todo"), "no-todo");
     }
 

@@ -45,7 +45,9 @@ fn navigate_or_create<'a>(
         if !entry.is_object() {
             anyhow::bail!("expected object at `{segment}`, found non-object");
         }
-        cur = entry.as_object_mut().expect("just checked entry.is_object()");
+        cur = entry
+            .as_object_mut()
+            .expect("just checked entry.is_object()");
     }
     Ok(cur)
 }

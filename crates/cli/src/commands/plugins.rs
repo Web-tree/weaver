@@ -1,9 +1,9 @@
 use clap::{Args, Subcommand};
+use std::path::{Path, PathBuf};
 use weaver_core::config::WeaverConfig;
 use weaver_core::lockfile::Lockfile;
 use weaver_core::plugin::cache::PluginCache;
 use weaver_core::plugin::resolver::PluginResolver;
-use std::path::{Path, PathBuf};
 
 /// Manage plugins
 #[derive(Args)]

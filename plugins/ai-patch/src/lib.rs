@@ -37,7 +37,11 @@ fn sh(command: &str, cwd: &str, stdin: Option<Vec<u8>>) -> Result<(i32, Vec<u8>,
 }
 
 /// Run `git <args...>` in `cwd`, optionally feeding `stdin` (e.g. a diff).
-fn git(args: &[&str], cwd: &str, stdin: Option<Vec<u8>>) -> Result<(i32, Vec<u8>, Vec<u8>), String> {
+fn git(
+    args: &[&str],
+    cwd: &str,
+    stdin: Option<Vec<u8>>,
+) -> Result<(i32, Vec<u8>, Vec<u8>), String> {
     let req = ExecRequest {
         program: "git".to_string(),
         args: args.iter().map(|s| s.to_string()).collect(),
@@ -74,7 +78,11 @@ impl Guest for Component {
         Ok(EnsurePlan {
             description: format!(
                 "ai.patch: invoke '{}' for prompt \"{}\", apply diff, verify, rollback on failure",
-                if cfg.tool.is_empty() { "<tool>" } else { &cfg.tool },
+                if cfg.tool.is_empty() {
+                    "<tool>"
+                } else {
+                    &cfg.tool
+                },
                 cfg.prompt.chars().take(60).collect::<String>()
             ),
             actions: vec![
@@ -134,8 +142,8 @@ impl Guest for Component {
         let diff = stdout;
 
         // 2. Apply the diff with git.
-        let (apply_status, _, apply_err) =
-            git(&["apply"], &req.app_path, Some(diff.clone())).map_err(EnsureError::ExecutionError)?;
+        let (apply_status, _, apply_err) = git(&["apply"], &req.app_path, Some(diff.clone()))
+            .map_err(EnsureError::ExecutionError)?;
         if apply_status != 0 {
             return Err(EnsureError::ExecutionError(format!(
                 "git apply failed (nothing changed): {}",
@@ -154,7 +162,10 @@ impl Guest for Component {
             }
         }
 
-        Ok(format!("ai.patch: applied diff via '{}' and verified", cfg.tool))
+        Ok(format!(
+            "ai.patch: applied diff via '{}' and verified",
+            cfg.tool
+        ))
     }
 }
 

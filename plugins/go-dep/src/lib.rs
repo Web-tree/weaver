@@ -39,7 +39,10 @@ impl Guest for Component {
             .map_err(|e| EnsureError::ConfigError(format!("Invalid config: {}", e)))?;
         Ok(EnsurePlan {
             description: format!("Ensure go.mod requires {}@{}", cfg.module, cfg.version),
-            actions: vec![format!("go mod edit -require={}@{}", cfg.module, cfg.version)],
+            actions: vec![format!(
+                "go mod edit -require={}@{}",
+                cfg.module, cfg.version
+            )],
         })
     }
 
@@ -50,19 +53,18 @@ impl Guest for Component {
             return Ok(format!("Would require {}@{}", cfg.module, cfg.version));
         }
         let require = format!("-require={}@{}", cfg.module, cfg.version);
-        let (status, _, stderr) = run(
-            "go",
-            &["mod".into(), "edit".into(), require],
-            &req.app_path,
-        )
-        .map_err(EnsureError::ExecutionError)?;
+        let (status, _, stderr) = run("go", &["mod".into(), "edit".into(), require], &req.app_path)
+            .map_err(EnsureError::ExecutionError)?;
         if status != 0 {
             return Err(EnsureError::ExecutionError(format!(
                 "go mod edit failed: {}",
                 String::from_utf8_lossy(&stderr)
             )));
         }
-        Ok(format!("Ensured go.mod requires {}@{}", cfg.module, cfg.version))
+        Ok(format!(
+            "Ensured go.mod requires {}@{}",
+            cfg.module, cfg.version
+        ))
     }
 }
 
