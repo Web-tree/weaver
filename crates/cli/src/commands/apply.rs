@@ -141,7 +141,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         // Files Processing
         let files_src = module_path.join("files");
         if files_src.exists() {
-            for entry in WalkDir::new(&files_src) {
+            for entry in WalkDir::new(&files_src).follow_links(true) {
                 let entry = entry?;
                 if entry.file_type().is_file() {
                     let rel_path = entry.path().strip_prefix(&files_src)?;
@@ -208,7 +208,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         // Templates Processing
         let templates_src = module_path.join("templates");
         if templates_src.exists() {
-            for entry in walkdir::WalkDir::new(&templates_src) {
+            for entry in WalkDir::new(&templates_src).follow_links(true) {
                 let entry = entry?;
                 if entry.file_type().is_file() {
                     let rel_path = entry.path().strip_prefix(&templates_src)?;

@@ -11,6 +11,7 @@ mod list;
 mod module;
 mod module_checks;
 mod module_path;
+mod module_symlinks;
 mod naming;
 mod plan;
 mod self_update;
