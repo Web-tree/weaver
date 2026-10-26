@@ -1,0 +1,58 @@
+name: CI
+
+on:
+    pull_request:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+    CARGO_TERM_COLOR: always
+    CARGO_INCREMENTAL: "0"
+    # Never let the CLI under test phone home; the self-update tests point it
+    # at a local release server explicitly.
+    WVR_NO_UPDATE_CHECK: "1"
+
+jobs:
+    lint:
+        name: fmt + clippy
+        runs-on: ubuntu-26.04
+        steps:
+            - uses: actions/checkout@v7
+
+            # Caches ~/.cargo and target/ through Swatinem/rust-cache.
+            - uses: actions-rust-lang/setup-rust-toolchain@v1
+              with:
+                  toolchain: stable
+                  components: rustfmt, clippy
+                  # Lint strictness lives in the clippy step, not RUSTFLAGS.
+                  rustflags: ""
+
+            - name: Format
+              run: cargo fmt --all --check
+
+            - name: Clippy
+              run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+    test:
+        name: Test
+        runs-on: ubuntu-26.04
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: actions-rust-lang/setup-rust-toolchain@v1
+              with:
+                  toolchain: stable
+                  rustflags: ""
+
+            # Includes the examples suite (crates/cli/tests/examples_suite.rs,
+            # driven by examples/test-suite.yaml).
+            - name: Test
+              run: cargo test --locked --workspace
