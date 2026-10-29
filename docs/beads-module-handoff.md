@@ -66,6 +66,10 @@ Verified against the working engine, not the aspirational docs. Where `specs/`,
   render; non-`.j2` files under `templates/` are copied through as-is.
 - A missing `weaver.module.yaml` is treated as empty (`crates/core/src/config.rs:304-317`).
 - Directory nesting under `files/`/`templates/` is preserved 1:1 into the app root.
+- Symlinks committed in a module are followed only while they resolve inside the
+  checkout. A link to an absolute path, out through `../`, or to nothing makes the
+  module fail to load, naming the link: the pinned commit vouches for the
+  checkout, never for the host's files (#121).
 
 ### 2.2 Manifest schema (`weaver.module.yaml`) — `ModuleManifest`
 
