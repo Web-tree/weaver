@@ -48,8 +48,12 @@ mod tests {
 
     #[test]
     fn module_path_round_trips() {
-        let mut lock = Lockfile { version: "1".to_string(), ..Default::default() };
-        lock.modules.insert("std".to_string(), module_lock(Some("modules/a")));
+        let mut lock = Lockfile {
+            version: "1".to_string(),
+            ..Default::default()
+        };
+        lock.modules
+            .insert("std".to_string(), module_lock(Some("modules/a")));
 
         let yaml = serde_yml::to_string(&lock).unwrap();
         let back: Lockfile = serde_yml::from_str(&yaml).unwrap();
@@ -59,7 +63,10 @@ mod tests {
 
     #[test]
     fn module_without_path_omits_it_and_still_loads() {
-        let mut lock = Lockfile { version: "1".to_string(), ..Default::default() };
+        let mut lock = Lockfile {
+            version: "1".to_string(),
+            ..Default::default()
+        };
         lock.modules.insert("std".to_string(), module_lock(None));
         assert!(!serde_yml::to_string(&lock).unwrap().contains("path"));
 

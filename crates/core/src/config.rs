@@ -55,7 +55,10 @@ impl PluginConfig {
             );
         }
         if self.git.is_none() && self.path.is_none() {
-            anyhow::bail!("Plugin '{}' must have either 'git' or 'path' property.", name);
+            anyhow::bail!(
+                "Plugin '{}' must have either 'git' or 'path' property.",
+                name
+            );
         }
         Ok(())
     }
@@ -641,7 +644,8 @@ apps:
 
     #[test]
     fn ensure_entry_known_type_parses_typed() {
-        let yaml = "type: git.submodule\nurl: https://example.com/x.git\npath: vendor/x\nref: main\n";
+        let yaml =
+            "type: git.submodule\nurl: https://example.com/x.git\npath: vendor/x\nref: main\n";
         let entry: EnsureEntry = serde_yml::from_str(yaml).unwrap();
         match entry {
             EnsureEntry::Known(EnsureConfig::GitSubmodule { url, path, r#ref }) => {
@@ -714,7 +718,10 @@ remediate: "run `cargo clippy --fix`"
                 // The non-`type` fields are captured verbatim for the plugin.
                 assert_eq!(p.config.get("module").unwrap(), "github.com/pkg/errors");
                 assert_eq!(p.config.get("version").unwrap(), "v0.9.1");
-                assert!(!p.config.contains_key("type"), "type must not leak into config");
+                assert!(
+                    !p.config.contains_key("type"),
+                    "type must not leak into config"
+                );
             }
             other => panic!("expected generic Plugin entry, got {other:?}"),
         }

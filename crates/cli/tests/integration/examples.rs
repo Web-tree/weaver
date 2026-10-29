@@ -1,5 +1,4 @@
 use crate::common::{TestContext, cmd};
-use assert_cmd::Command;
 use std::path::Path;
 
 fn init_git_modules(root: &Path) {
@@ -17,30 +16,30 @@ fn init_git_modules(root: &Path) {
 
                 // Ensure master branch
                 std::process::Command::new("git")
-                    .args(&["symbolic-ref", "HEAD", "refs/heads/master"])
+                    .args(["symbolic-ref", "HEAD", "refs/heads/master"])
                     .current_dir(&path)
                     .output()
                     .ok();
 
                 std::process::Command::new("git")
-                    .args(&["config", "user.email", "test@example.com"])
+                    .args(["config", "user.email", "test@example.com"])
                     .current_dir(&path)
                     .output()
                     .ok();
                 std::process::Command::new("git")
-                    .args(&["config", "user.name", "Test"])
+                    .args(["config", "user.name", "Test"])
                     .current_dir(&path)
                     .output()
                     .ok();
 
                 std::process::Command::new("git")
-                    .args(&["add", "."])
+                    .args(["add", "."])
                     .current_dir(&path)
                     .output()
                     .expect("Failed to git add");
 
                 std::process::Command::new("git")
-                    .args(&["commit", "-m", "Initial"])
+                    .args(["commit", "-m", "Initial"])
                     .current_dir(&path)
                     .output()
                     .expect("Failed to git commit");
@@ -69,30 +68,30 @@ fn test_example_git_module() {
         .output()
         .unwrap();
     std::process::Command::new("git")
-        .args(&["config", "user.email", "test@example.com"])
+        .args(["config", "user.email", "test@example.com"])
         .current_dir(&example_dir)
         .output()
         .ok();
     std::process::Command::new("git")
-        .args(&["config", "user.name", "Test"])
+        .args(["config", "user.name", "Test"])
         .current_dir(&example_dir)
         .output()
         .ok();
     std::process::Command::new("git")
-        .args(&["config", "protocol.file.allow", "always"])
+        .args(["config", "protocol.file.allow", "always"])
         .current_dir(&example_dir)
         .output()
         .ok();
 
     // Explicitly set HEAD to master in root
     std::process::Command::new("git")
-        .args(&["symbolic-ref", "HEAD", "refs/heads/master"])
+        .args(["symbolic-ref", "HEAD", "refs/heads/master"])
         .current_dir(&example_dir)
         .output()
         .ok();
 
     std::process::Command::new("git")
-        .args(&["commit", "--allow-empty", "-m", "Root init"])
+        .args(["commit", "--allow-empty", "-m", "Root init"])
         .current_dir(&example_dir)
         .output()
         .ok();
@@ -111,7 +110,7 @@ fn test_example_git_module() {
         .unwrap();
     // Force upstream HEAD to master
     std::process::Command::new("git")
-        .args(&["symbolic-ref", "HEAD", "refs/heads/master"])
+        .args(["symbolic-ref", "HEAD", "refs/heads/master"])
         .current_dir(&upstream_path)
         .output()
         .ok();
@@ -126,7 +125,7 @@ fn test_example_git_module() {
         .unwrap();
     // Force source branch to master
     std::process::Command::new("git")
-        .args(&["symbolic-ref", "HEAD", "refs/heads/master"])
+        .args(["symbolic-ref", "HEAD", "refs/heads/master"])
         .current_dir(&upstream_src)
         .output()
         .ok();
@@ -139,27 +138,27 @@ fn test_example_git_module() {
         .output()
         .unwrap();
     std::process::Command::new("git")
-        .args(&["config", "user.email", "test@example.com"])
+        .args(["config", "user.email", "test@example.com"])
         .current_dir(&upstream_src)
         .output()
         .ok();
     std::process::Command::new("git")
-        .args(&["config", "user.name", "Test"])
+        .args(["config", "user.name", "Test"])
         .current_dir(&upstream_src)
         .output()
         .ok();
     std::process::Command::new("git")
-        .args(&["commit", "-m", "Init"])
+        .args(["commit", "-m", "Init"])
         .current_dir(&upstream_src)
         .output()
         .unwrap();
     std::process::Command::new("git")
-        .args(&["remote", "add", "origin", upstream_path.to_str().unwrap()])
+        .args(["remote", "add", "origin", upstream_path.to_str().unwrap()])
         .current_dir(&upstream_src)
         .output()
         .unwrap();
     std::process::Command::new("git")
-        .args(&["push", "origin", "master"])
+        .args(["push", "origin", "master"])
         .current_dir(&upstream_src)
         .output()
         .unwrap();
@@ -182,7 +181,7 @@ fn test_example_git_module() {
         .output()
         .unwrap();
     std::process::Command::new("git")
-        .args(&["commit", "-m", "Mock URL"])
+        .args(["commit", "-m", "Mock URL"])
         .current_dir(&module_dir)
         .output()
         .unwrap();

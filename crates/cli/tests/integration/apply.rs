@@ -10,11 +10,7 @@ fn test_bootstrap_empty_workspace() {
     let ctx = TestContext::new();
     ctx.write_file("weaver.yaml", "version: \"1.0\"\nmodules: []\napps: []\n");
 
-    cmd()
-        .arg("apply")
-        .current_dir(&ctx.root)
-        .assert()
-        .success();
+    cmd().arg("apply").current_dir(&ctx.root).assert().success();
 
     assert!(ctx.root.join(".rw/state.yaml").exists());
 }
@@ -34,13 +30,21 @@ fn test_apply_then_plan_is_idempotent_for_heading_and_block_marker_sections() {
     let ctx = TestContext::new();
     let example = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../examples/23-ai-agents-skills-and-agents-md");
-    assert!(example.exists(), "fixture example missing: {}", example.display());
+    assert!(
+        example.exists(),
+        "fixture example missing: {}",
+        example.display()
+    );
 
     // The module source must be a real git repo — ModuleResolver::resolve
     // always shells out to `git rev-parse`/`git clone`, even for local paths.
     let module_dir = ctx.root.join("module");
     std::process::Command::new("cp")
-        .args(["-r", example.join("module").to_str().unwrap(), module_dir.to_str().unwrap()])
+        .args([
+            "-r",
+            example.join("module").to_str().unwrap(),
+            module_dir.to_str().unwrap(),
+        ])
         .status()
         .expect("cp module failed");
     let git_envs = [
@@ -49,34 +53,60 @@ fn test_apply_then_plan_is_idempotent_for_heading_and_block_marker_sections() {
         ("GIT_COMMITTER_NAME", "Test"),
         ("GIT_COMMITTER_EMAIL", "test@example.com"),
     ];
-    std::process::Command::new("git").args(["init", "-q"]).current_dir(&module_dir).output().unwrap();
-    std::process::Command::new("git").args(["add", "-A"]).current_dir(&module_dir).output().unwrap();
+    std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(&module_dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(&module_dir)
+        .output()
+        .unwrap();
     std::process::Command::new("git")
         .args(["commit", "-q", "-m", "init"])
         .current_dir(&module_dir)
         .envs(git_envs)
         .output()
         .unwrap();
-    std::process::Command::new("git").args(["tag", "v1"]).current_dir(&module_dir).output().unwrap();
+    std::process::Command::new("git")
+        .args(["tag", "v1"])
+        .current_dir(&module_dir)
+        .output()
+        .unwrap();
 
     // Copy `before/` (weaver.yaml + app/AGENTS.md) into the workspace root,
     // rewriting the module source to point at the git module copied above
     // (the fixture's own `../module` assumes a sibling `before/` layout).
     std::process::Command::new("cp")
-        .args(["-r", example.join("before").join(".").to_str().unwrap(), ctx.root.to_str().unwrap()])
+        .args([
+            "-r",
+            example.join("before").join(".").to_str().unwrap(),
+            ctx.root.to_str().unwrap(),
+        ])
         .status()
         .expect("cp before failed");
-    let weaver_yaml = ctx.read_file("weaver.yaml").replace("../module", "./module");
+    let weaver_yaml = ctx
+        .read_file("weaver.yaml")
+        .replace("../module", "./module");
     ctx.write_file("weaver.yaml", &weaver_yaml);
 
-    cmd().arg("apply").arg("--auto-approve").current_dir(&ctx.root).assert().success();
+    cmd()
+        .arg("apply")
+        .arg("--auto-approve")
+        .current_dir(&ctx.root)
+        .assert()
+        .success();
 
     let agents_md = ctx.read_file("app/AGENTS.md");
     assert!(
         agents_md.contains("rw:section id=\"recent-changes\""),
         "block-marker region destroyed by apply (heading region ate it):\n{agents_md}"
     );
-    assert!(agents_md.contains("## Skills"), "heading-managed section missing after apply");
+    assert!(
+        agents_md.contains("## Skills"),
+        "heading-managed section missing after apply"
+    );
     assert!(
         agents_md.contains("## Manual Additions"),
         "hand-written content above the managed heading was destroyed"

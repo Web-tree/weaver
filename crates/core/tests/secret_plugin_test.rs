@@ -1,5 +1,5 @@
-use weaver_core::plugin::wasm::WasmPluginEngine;
 use std::path::Path;
+use weaver_core::plugin::wasm::WasmPluginEngine;
 
 /// Loads the aws-ssm secrets provider WASM component and calls `get-secret`
 /// through the `provider` world. Proves the secrets plugin runtime works.
@@ -18,7 +18,9 @@ fn test_load_aws_ssm_provider() {
         return;
     }
 
-    let provider = engine.load_provider(wasm_path).expect("failed to load provider");
+    let provider = engine
+        .load_provider(wasm_path)
+        .expect("failed to load provider");
 
     // Calling get-secret will shell out to `aws`, which is typically absent in
     // CI. Either outcome proves the WASM component loaded and executed: a

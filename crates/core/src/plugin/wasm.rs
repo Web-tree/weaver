@@ -15,6 +15,12 @@ pub struct Host {
     pub wasi: WasiCtx,
 }
 
+impl Default for Host {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Host {
     pub fn new() -> Self {
         // Plugins built with cargo-component import WASI; inherit stdio/env so
@@ -68,11 +74,11 @@ impl weaver::plugin::process::Host for Host {
             .spawn()
             .map_err(|e| format!("Failed to spawn {}: {}", req.program, e))?;
 
-        if let Some(input) = &req.stdin {
-            if let Some(mut s) = child.stdin.take() {
-                s.write_all(input)
-                    .map_err(|e| format!("Failed to write stdin: {}", e))?;
-            }
+        if let Some(input) = &req.stdin
+            && let Some(mut s) = child.stdin.take()
+        {
+            s.write_all(input)
+                .map_err(|e| format!("Failed to write stdin: {}", e))?;
         }
 
         let output = child

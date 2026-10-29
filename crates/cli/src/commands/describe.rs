@@ -1,9 +1,9 @@
 use clap::Args;
-use weaver_core::config::{ModuleManifest, WeaverConfig};
-use weaver_core::module::ModuleResolver;
 use serde_yml::Value;
 use std::collections::HashMap;
 use std::path::Path;
+use weaver_core::config::{ModuleManifest, WeaverConfig};
+use weaver_core::module::ModuleResolver;
 
 #[derive(Args)]
 pub struct DescribeArgs {

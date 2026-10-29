@@ -116,13 +116,17 @@ fn exit_code_for_error(err: &anyhow::Error) -> ExitCode {
     if let Some(tag) = err.downcast_ref::<ExitTag>() {
         return tag.0;
     }
-    if err
-        .chain()
-        .any(|cause| cause.downcast_ref::<weaver_core::plugin::PluginError>().is_some())
-    {
+    if err.chain().any(|cause| {
+        cause
+            .downcast_ref::<weaver_core::plugin::PluginError>()
+            .is_some()
+    }) {
         return ExitCode::Plugin;
     }
-    if err.chain().any(|cause| cause.downcast_ref::<std::io::Error>().is_some()) {
+    if err
+        .chain()
+        .any(|cause| cause.downcast_ref::<std::io::Error>().is_some())
+    {
         return ExitCode::SystemError;
     }
     ExitCode::UserError
@@ -202,10 +206,10 @@ mod tests {
         let result: anyhow::Result<()> = Err(anyhow::anyhow!("disk full"));
         let tagged = result.with_exit_code(ExitCode::SystemError).unwrap_err();
         assert!(tagged.downcast_ref::<ExitTag>().is_some());
-        assert_eq!(tagged.chain().map(|e| e.to_string()).collect::<Vec<_>>(), vec![
-            String::new(),
-            "disk full".to_string(),
-        ]);
+        assert_eq!(
+            tagged.chain().map(|e| e.to_string()).collect::<Vec<_>>(),
+            vec![String::new(), "disk full".to_string(),]
+        );
     }
 
     #[test]

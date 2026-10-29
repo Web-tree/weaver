@@ -13,6 +13,12 @@ pub struct TestContext {
     // Keep temp alive so dir isn't deleted until drop
 }
 
+impl Default for TestContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestContext {
     pub fn new() -> Self {
         let temp = tempfile::tempdir().expect("failed to create temp dir");
@@ -46,7 +52,7 @@ impl TestContext {
 
         // Init remote repo
         std::process::Command::new("git")
-            .args(&["init", "--bare"])
+            .args(["init", "--bare"])
             .current_dir(&remote_path)
             .output()
             .unwrap();
@@ -56,7 +62,7 @@ impl TestContext {
         fs::create_dir_all(&source_path).unwrap();
 
         std::process::Command::new("git")
-            .args(&["init"])
+            .args(["init"])
             .current_dir(&source_path)
             .output()
             .unwrap();
@@ -79,14 +85,14 @@ impl TestContext {
         ];
 
         std::process::Command::new("git")
-            .args(&["add", "."])
+            .args(["add", "."])
             .current_dir(&source_path)
             .envs(git_envs)
             .output()
             .unwrap();
 
         std::process::Command::new("git")
-            .args(&["commit", "-m", "Initial commit"])
+            .args(["commit", "-m", "Initial commit"])
             .current_dir(&source_path)
             .envs(git_envs)
             .output()
@@ -94,7 +100,7 @@ impl TestContext {
 
         // Tag it
         std::process::Command::new("git")
-            .args(&["tag", ref_])
+            .args(["tag", ref_])
             .current_dir(&source_path)
             .envs(git_envs)
             .output()
@@ -102,13 +108,13 @@ impl TestContext {
 
         // Push to bare remote
         std::process::Command::new("git")
-            .args(&["remote", "add", "origin", remote_path.to_str().unwrap()])
+            .args(["remote", "add", "origin", remote_path.to_str().unwrap()])
             .current_dir(&source_path)
             .output()
             .unwrap();
 
         std::process::Command::new("git")
-            .args(&["push", "origin", ref_])
+            .args(["push", "origin", ref_])
             .current_dir(&source_path)
             .output()
             .unwrap();
@@ -117,7 +123,7 @@ impl TestContext {
     pub fn setup_module_with_manifest(
         &self,
         name: &str,
-        ref_: &str,
+        _ref_: &str,
         content: &str,
         manifest: &str,
     ) {
@@ -126,7 +132,7 @@ impl TestContext {
 
         // Init remote repo
         std::process::Command::new("git")
-            .args(&["init", "--bare"])
+            .args(["init", "--bare"])
             .current_dir(&remote_path)
             .output()
             .unwrap();
@@ -136,7 +142,7 @@ impl TestContext {
         fs::create_dir_all(&source_path).unwrap();
 
         std::process::Command::new("git")
-            .args(&["init"])
+            .args(["init"])
             .current_dir(&source_path)
             .output()
             .expect("Failed to init git");
@@ -155,7 +161,7 @@ impl TestContext {
 
         // Force branch name to master ensuring it exists
         std::process::Command::new("git")
-            .args(&["symbolic-ref", "HEAD", "refs/heads/master"])
+            .args(["symbolic-ref", "HEAD", "refs/heads/master"])
             .current_dir(&source_path)
             .output()
             .ok();
@@ -169,7 +175,7 @@ impl TestContext {
         ];
 
         let out = std::process::Command::new("git")
-            .args(&["add", "."])
+            .args(["add", "."])
             .current_dir(&source_path)
             .envs(git_envs)
             .output()
@@ -177,7 +183,7 @@ impl TestContext {
         assert!(out.status.success(), "git add failed");
 
         let out = std::process::Command::new("git")
-            .args(&["commit", "-m", "Initial commit"])
+            .args(["commit", "-m", "Initial commit"])
             .current_dir(&source_path)
             .envs(git_envs)
             .output()
@@ -186,13 +192,13 @@ impl TestContext {
 
         // Push to bare remote
         std::process::Command::new("git")
-            .args(&["remote", "add", "origin", remote_path.to_str().unwrap()])
+            .args(["remote", "add", "origin", remote_path.to_str().unwrap()])
             .current_dir(&source_path)
             .output()
             .unwrap();
 
         let out = std::process::Command::new("git")
-            .args(&["push", "origin", "master"])
+            .args(["push", "origin", "master"])
             .current_dir(&source_path)
             .output()
             .expect("Failed to git push");

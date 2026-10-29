@@ -201,7 +201,11 @@ mod rev_parse_tests {
             vec!["commit", "--allow-empty", "-m", "init"],
             vec!["tag", "v1"],
         ] {
-            Command::new("git").args(&args).current_dir(&repo).output().unwrap();
+            Command::new("git")
+                .args(&args)
+                .current_dir(&repo)
+                .output()
+                .unwrap();
         }
         let url = format!("file://{}", repo.display());
         let sha = rev_parse_remote(&url, "v1").unwrap();

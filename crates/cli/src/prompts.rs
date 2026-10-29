@@ -1,9 +1,9 @@
-use dialoguer::{theme::ColorfulTheme, Input};
-use weaver_core::config::ModuleManifest;
+use dialoguer::{Input, theme::ColorfulTheme};
 use serde_yml::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
+use weaver_core::config::ModuleManifest;
 
 type AnswersMap = HashMap<String, HashMap<String, Value>>;
 

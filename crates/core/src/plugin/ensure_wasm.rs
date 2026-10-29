@@ -15,6 +15,12 @@ pub struct EnsureHost {
     pub wasi: WasiCtx,
 }
 
+impl Default for EnsureHost {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EnsureHost {
     pub fn new() -> Self {
         // Build WASI context with inherited environment
@@ -69,12 +75,11 @@ impl weaver::plugin::process::Host for EnsureHost {
             Err(e) => return Err(format!("Failed to spawn {}: {}", req.program, e)),
         };
 
-        if let Some(input) = &req.stdin {
-            if let Some(mut s) = child.stdin.take() {
-                if let Err(e) = s.write_all(input) {
-                    return Err(format!("Failed to write stdin: {}", e));
-                }
-            }
+        if let Some(input) = &req.stdin
+            && let Some(mut s) = child.stdin.take()
+            && let Err(e) = s.write_all(input)
+        {
+            return Err(format!("Failed to write stdin: {}", e));
         }
 
         let output = child

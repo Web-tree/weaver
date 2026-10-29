@@ -95,7 +95,7 @@ fn test_drift_overwrite() {
         .unwrap()
         .current_dir(&ctx.root)
         .env("HOME", ctx.root.as_os_str())
-        .args(&["apply", "--strategy", "overwrite", "--auto-approve"])
+        .args(["apply", "--strategy", "overwrite", "--auto-approve"])
         .assert()
         .success();
 

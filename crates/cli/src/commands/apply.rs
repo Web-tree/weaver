@@ -1,4 +1,8 @@
 use clap::Args;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use tracing::info;
+use walkdir::WalkDir;
 use weaver_core::app::App;
 use weaver_core::config::{ModuleManifest, WeaverConfig};
 use weaver_core::engine::Engine;
@@ -6,14 +10,8 @@ use weaver_core::module::ModuleResolver;
 use weaver_core::plan::PlanFile;
 use weaver_core::plugin::resolver::PluginResolver;
 use weaver_core::secret::SecretResolver;
-use weaver_core::state::{
-    FileState, State, calculate_checksum, calculate_checksum_from_bytes,
-};
+use weaver_core::state::{FileState, State, calculate_checksum, calculate_checksum_from_bytes};
 use weaver_core::template::{TemplateEngine, build_context};
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
-use tracing::info;
-use walkdir::WalkDir;
 
 #[derive(Args, Clone)]
 pub struct ApplyArgs {
@@ -119,7 +117,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
             &manifest,
             &app_config.inputs,
             interactive,
-            &answers_path,
+            answers_path,
             &app_config.name,
         )?;
 
@@ -127,7 +125,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         let current_keys: std::collections::HashSet<String> =
             manifest.inputs.keys().cloned().collect();
         crate::prompts::cleanup_stale_answers(
-            &answers_path,
+            answers_path,
             &app_config.name,
             &current_keys,
             interactive,
@@ -336,8 +334,7 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         // types to WASM plugins resolved via `plugin_resolver`.
         for ensure_config in &manifest.ensures {
             let ensure =
-                weaver_core::ensure::build_ensure(ensure_config, Some(&plugin_resolver))
-                    .await?;
+                weaver_core::ensure::build_ensure(ensure_config, Some(&plugin_resolver)).await?;
             let plan = ensure.plan(&ensure_ctx)?;
             if dry_run {
                 if !plan.actions.is_empty() {
@@ -369,9 +366,9 @@ pub async fn execute(args: ApplyArgs, dry_run: bool) -> anyhow::Result<usize> {
         if !module_lock.modules.is_empty() {
             let lockfile_path = Path::new("weaver.lock");
             let mut on_disk = if lockfile_path.exists() {
-                serde_yml::from_str::<weaver_core::lockfile::Lockfile>(
-                    &std::fs::read_to_string(lockfile_path)?,
-                )?
+                serde_yml::from_str::<weaver_core::lockfile::Lockfile>(&std::fs::read_to_string(
+                    lockfile_path,
+                )?)?
             } else {
                 weaver_core::lockfile::Lockfile {
                     version: "1".to_string(),
@@ -419,8 +416,8 @@ fn collect_current_inputs(config: &WeaverConfig) -> BTreeMap<String, serde_json:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use weaver_core::config::{AppConfig, WeaverConfig};
     use std::collections::HashMap;
+    use weaver_core::config::{AppConfig, WeaverConfig};
 
     fn make_config(inputs: HashMap<String, serde_yml::Value>) -> WeaverConfig {
         WeaverConfig {

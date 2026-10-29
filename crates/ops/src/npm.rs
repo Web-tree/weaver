@@ -36,12 +36,11 @@ pub fn npm_pkg_get_script(name: &str, cwd: &Path) -> Result<Option<String>> {
     let content = std::fs::read_to_string(pkg_path)?;
     let json: serde_json::Value = serde_json::from_str(&content)?;
 
-    if let Some(scripts) = json.get("scripts") {
-        if let Some(cmd) = scripts.get(name) {
-            if let Some(s) = cmd.as_str() {
-                return Ok(Some(s.to_string()));
-            }
-        }
+    if let Some(scripts) = json.get("scripts")
+        && let Some(cmd) = scripts.get(name)
+        && let Some(s) = cmd.as_str()
+    {
+        return Ok(Some(s.to_string()));
     }
 
     Ok(None)

@@ -319,6 +319,7 @@ impl InstalledBinary {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).expect("chmod");
         }
+        wait_until_executable(&path);
 
         Self { _dir: dir, path }
     }
@@ -350,5 +351,28 @@ impl InstalledBinary {
             })
             .filter(|name| name != BIN_NAME)
             .collect()
+    }
+}
+
+/// Block until `path`, just written by this process, can be executed.
+///
+/// A child forked by another test thread while the file was open for writing
+/// keeps it busy (ETXTBSY) until that child execs. Once one exec succeeds no
+/// such writer is left, so later runs of the file cannot hit it.
+fn wait_until_executable(path: &Path) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        match std::process::Command::new(path).arg("--version").output() {
+            Err(e)
+                if e.kind() == std::io::ErrorKind::ExecutableFileBusy
+                    && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            result => {
+                result.expect("run installed binary");
+                return;
+            }
+        }
     }
 }

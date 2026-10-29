@@ -1,7 +1,7 @@
 use crate::ensure::{Ensure, EnsureContext, EnsurePlan};
 use anyhow::Result;
-use weaver_ops::git;
 use std::path::PathBuf;
+use weaver_ops::git;
 
 pub struct EnsureGitSubmodule {
     pub url: String,
@@ -26,13 +26,11 @@ impl Ensure for EnsureGitSubmodule {
         // Safe Checkout check
         if target_path.exists() {
             // If it's a repo, check if dirty
-            if target_path.join(".git").exists() {
-                if !git::is_worktree_clean(&target_path)? {
-                    return Err(anyhow::anyhow!(
-                        "Target path {:?} has dirty working tree. Safe Checkout aborted.",
-                        target_path
-                    ));
-                }
+            if target_path.join(".git").exists() && !git::is_worktree_clean(&target_path)? {
+                return Err(anyhow::anyhow!(
+                    "Target path {:?} has dirty working tree. Safe Checkout aborted.",
+                    target_path
+                ));
             }
         }
 
@@ -77,13 +75,11 @@ impl Ensure for EnsureGitClonePinned {
 
         if target_path.exists() {
             // Check clean
-            if target_path.join(".git").exists() {
-                if !git::is_worktree_clean(&target_path)? {
-                    return Err(anyhow::anyhow!(
-                        "Target path {:?} has dirty working tree.",
-                        target_path
-                    ));
-                }
+            if target_path.join(".git").exists() && !git::is_worktree_clean(&target_path)? {
+                return Err(anyhow::anyhow!(
+                    "Target path {:?} has dirty working tree.",
+                    target_path
+                ));
             }
         }
 

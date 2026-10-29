@@ -100,7 +100,9 @@ fn yaml_to_json(value: &serde_yml::Value) -> Result<serde_json::Value, String> {
             } else if let Some(u) = n.as_u64() {
                 J::Number(u.into())
             } else {
-                serde_json::Number::from_f64(n.as_f64()).map(J::Number).unwrap_or(J::Null)
+                serde_json::Number::from_f64(n.as_f64())
+                    .map(J::Number)
+                    .unwrap_or(J::Null)
             }
         }
         Y::String(s) => J::String(s.clone()),
@@ -233,7 +235,10 @@ mod tests {
         let template = "version: \"3.8\"\n\nservices:\n  app:\n    image: {{ image_name }}:latest\n    ports:\n{% for port in ports %}\n      - \"{{ port }}:{{ port }}\"\n{% endfor %}\n{% if enable_db %}\n  database:\n    image: postgres:16\n    environment:\n      POSTGRES_DB: {{ db_name }}\n      POSTGRES_USER: admin\n    ports:\n      - \"5432:5432\"\n{% endif %}\n";
 
         let mut inputs = HashMap::new();
-        inputs.insert("image_name".into(), serde_yml::Value::String("myapp".into()));
+        inputs.insert(
+            "image_name".into(),
+            serde_yml::Value::String("myapp".into()),
+        );
         inputs.insert("enable_db".into(), serde_yml::Value::Bool(true));
         inputs.insert("db_name".into(), serde_yml::Value::String("appdb".into()));
         inputs.insert(

@@ -1,7 +1,7 @@
 use crate::config::ModuleConfig;
 use crate::lockfile::{Lockfile, ModuleLock};
-use weaver_ops::git;
 use std::path::{Component, Path, PathBuf};
+use weaver_ops::git;
 
 pub struct ModuleResolver {
     cache_dir: PathBuf,
@@ -15,7 +15,10 @@ impl ModuleResolver {
         if lockfile.version.is_empty() {
             lockfile.version = "1".to_string();
         }
-        Ok(Self { cache_dir, lockfile })
+        Ok(Self {
+            cache_dir,
+            lockfile,
+        })
     }
 
     /// Resolve `source@ref` to a local path, pinning the ref to a concrete
@@ -27,9 +30,9 @@ impl ModuleResolver {
         // We canonicalize relative to CWD so that git ls-remote / clone work
         // regardless of the working directory of the calling process.
         let transport_url: String = if !source.contains("://") {
-            let abs = std::path::Path::new(source)
-                .canonicalize()
-                .map_err(|e| anyhow::anyhow!("Cannot resolve local module path '{}': {}", source, e))?;
+            let abs = std::path::Path::new(source).canonicalize().map_err(|e| {
+                anyhow::anyhow!("Cannot resolve local module path '{}': {}", source, e)
+            })?;
             abs.to_string_lossy().into_owned()
         } else {
             source.to_string()
@@ -76,21 +79,38 @@ impl ModuleResolver {
     /// there is no matching lock entry, the entry's `source`/`ref` no longer
     /// match what's being asked for (stale pin -- re-resolution needed), or
     /// the cache directory for the pinned commit isn't present on disk.
-    pub fn resolve_from_cache(&self, name: &str, source: &str, ref_: &str) -> Option<(PathBuf, String)> {
+    pub fn resolve_from_cache(
+        &self,
+        name: &str,
+        source: &str,
+        ref_: &str,
+    ) -> Option<(PathBuf, String)> {
         let lock = self.lockfile.modules.get(name)?;
         if lock.source != source || lock.r#ref != ref_ || lock.resolved_commit.is_empty() {
             return None;
         }
         let folder_name = urlencoding::encode(&lock.source);
-        let path = self.cache_dir.join(folder_name.as_ref()).join(&lock.resolved_commit);
-        if path.exists() { Some((path, lock.resolved_commit.clone())) } else { None }
+        let path = self
+            .cache_dir
+            .join(folder_name.as_ref())
+            .join(&lock.resolved_commit);
+        if path.exists() {
+            Some((path, lock.resolved_commit.clone()))
+        } else {
+            None
+        }
     }
 
     /// Like [`Self::resolve`], but also returns the commit the ref resolved
     /// to (reading it back out of the lock entry `resolve` just recorded),
     /// for callers that need to attribute results to a specific pinned
     /// commit (R2) without a second round trip through the lockfile.
-    pub fn resolve_with_commit(&mut self, name: &str, source: &str, ref_: &str) -> anyhow::Result<(PathBuf, String)> {
+    pub fn resolve_with_commit(
+        &mut self,
+        name: &str,
+        source: &str,
+        ref_: &str,
+    ) -> anyhow::Result<(PathBuf, String)> {
         let path = self.resolve(name, source, ref_)?;
         let commit = self
             .lockfile
@@ -108,8 +128,12 @@ impl ModuleResolver {
     }
 
     /// [`Self::resolve_with_commit`] for a declared module.
-    pub fn resolve_module_with_commit(&mut self, module: &ModuleConfig) -> anyhow::Result<(PathBuf, String)> {
-        let (checkout, commit) = self.resolve_with_commit(&module.name, &module.source, &module.r#ref)?;
+    pub fn resolve_module_with_commit(
+        &mut self,
+        module: &ModuleConfig,
+    ) -> anyhow::Result<(PathBuf, String)> {
+        let (checkout, commit) =
+            self.resolve_with_commit(&module.name, &module.source, &module.r#ref)?;
         let dir = module_dir(checkout, module.path.as_deref())?;
         if let Some(lock) = self.lockfile.modules.get_mut(&module.name) {
             lock.path = module.path.clone().filter(|p| !p.is_empty());
@@ -119,8 +143,12 @@ impl ModuleResolver {
 
     /// [`Self::resolve_from_cache`] for a declared module. `None` on a cache
     /// miss; `Some(Err)` when the cached checkout lacks a valid `path`.
-    pub fn resolve_module_from_cache(&self, module: &ModuleConfig) -> Option<anyhow::Result<(PathBuf, String)>> {
-        let (checkout, commit) = self.resolve_from_cache(&module.name, &module.source, &module.r#ref)?;
+    pub fn resolve_module_from_cache(
+        &self,
+        module: &ModuleConfig,
+    ) -> Option<anyhow::Result<(PathBuf, String)>> {
+        let (checkout, commit) =
+            self.resolve_from_cache(&module.name, &module.source, &module.r#ref)?;
         Some(module_dir(checkout, module.path.as_deref()).map(|dir| (dir, commit)))
     }
 }
@@ -135,7 +163,10 @@ pub fn module_dir(checkout: PathBuf, subpath: Option<&str>) -> anyhow::Result<Pa
         return Ok(checkout);
     };
     let rel = Path::new(subpath);
-    if !rel.components().all(|c| matches!(c, Component::Normal(_) | Component::CurDir)) {
+    if !rel
+        .components()
+        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir))
+    {
         anyhow::bail!(
             "Module path '{subpath}' must be a relative path inside the module repository; {}",
             modules_found(&checkout)
@@ -166,21 +197,30 @@ pub fn module_dir(checkout: PathBuf, subpath: Option<&str>) -> anyhow::Result<Pa
 }
 
 fn is_module_dir(dir: &Path) -> bool {
-    dir.join("weaver.module.yaml").is_file() || dir.join("files").is_dir() || dir.join("templates").is_dir()
+    dir.join("weaver.module.yaml").is_file()
+        || dir.join("files").is_dir()
+        || dir.join("templates").is_dir()
 }
 
 /// Lists the subdirectories of `checkout` (up to 4 levels deep, skipping
 /// `.git`) that hold a module, for an error that points at the right `path`.
 fn modules_found(checkout: &Path) -> String {
     fn walk(root: &Path, dir: &Path, depth: usize, found: &mut Vec<String>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             if !path.is_dir() || entry.file_name() == ".git" {
                 continue;
             }
             if is_module_dir(&path) {
-                found.push(path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/"));
+                found.push(
+                    path.strip_prefix(root)
+                        .unwrap_or(&path)
+                        .to_string_lossy()
+                        .replace('\\', "/"),
+                );
             } else if depth < 4 {
                 walk(root, &path, depth + 1, found);
             }
@@ -204,15 +244,25 @@ mod module_dir_tests {
     #[test]
     fn no_path_is_the_checkout_root() {
         let tmp = tempdir().unwrap();
-        assert_eq!(module_dir(tmp.path().to_path_buf(), None).unwrap(), tmp.path());
-        assert_eq!(module_dir(tmp.path().to_path_buf(), Some("")).unwrap(), tmp.path());
+        assert_eq!(
+            module_dir(tmp.path().to_path_buf(), None).unwrap(),
+            tmp.path()
+        );
+        assert_eq!(
+            module_dir(tmp.path().to_path_buf(), Some("")).unwrap(),
+            tmp.path()
+        );
     }
 
     #[test]
     fn a_relative_path_selects_the_subdirectory() {
         let tmp = tempdir().unwrap();
         std::fs::create_dir_all(tmp.path().join("weaver/web")).unwrap();
-        std::fs::write(tmp.path().join("weaver/web/weaver.module.yaml"), "inputs: {}\n").unwrap();
+        std::fs::write(
+            tmp.path().join("weaver/web/weaver.module.yaml"),
+            "inputs: {}\n",
+        )
+        .unwrap();
         assert_eq!(
             module_dir(tmp.path().to_path_buf(), Some("weaver/web")).unwrap(),
             tmp.path().join("weaver/web")
@@ -230,7 +280,9 @@ mod module_dir_tests {
         std::fs::create_dir_all(checkout.join("weaver")).unwrap();
         std::os::unix::fs::symlink(&outside, checkout.join("weaver/web")).unwrap();
 
-        let err = module_dir(checkout, Some("weaver/web")).unwrap_err().to_string();
+        let err = module_dir(checkout, Some("weaver/web"))
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("outside the module repository"), "{err}");
     }
 
@@ -239,7 +291,9 @@ mod module_dir_tests {
         let tmp = tempdir().unwrap();
         std::fs::create_dir_all(tmp.path().join("a")).unwrap();
         for bad in ["../a", "a/../../x", "/etc"] {
-            let err = module_dir(tmp.path().to_path_buf(), Some(bad)).unwrap_err().to_string();
+            let err = module_dir(tmp.path().to_path_buf(), Some(bad))
+                .unwrap_err()
+                .to_string();
             assert!(err.contains(bad), "{bad}: {err}");
         }
     }
@@ -247,7 +301,9 @@ mod module_dir_tests {
     #[test]
     fn a_missing_directory_is_an_error() {
         let tmp = tempdir().unwrap();
-        let err = module_dir(tmp.path().to_path_buf(), Some("nope")).unwrap_err().to_string();
+        let err = module_dir(tmp.path().to_path_buf(), Some("nope"))
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("nope"), "{err}");
     }
 
@@ -267,10 +323,15 @@ mod module_dir_tests {
         }
         std::fs::create_dir_all(root.join("modules/b/files")).unwrap();
 
-        let err = module_dir(root.to_path_buf(), Some("weaver/nope")).unwrap_err().to_string();
+        let err = module_dir(root.to_path_buf(), Some("weaver/nope"))
+            .unwrap_err()
+            .to_string();
 
         assert!(err.contains("weaver/nope"), "{err}");
-        assert!(err.contains("modules found: modules/a, modules/b, weaver/stdmod"), "{err}");
+        assert!(
+            err.contains("modules found: modules/a, modules/b, weaver/stdmod"),
+            "{err}"
+        );
         assert!(!err.contains(".git") && !err.contains("d5"), "{err}");
     }
 
@@ -279,9 +340,14 @@ mod module_dir_tests {
         let tmp = tempdir().unwrap();
         std::fs::create_dir_all(tmp.path().join("modules/a/templates")).unwrap();
 
-        let err = module_dir(tmp.path().to_path_buf(), Some("modules")).unwrap_err().to_string();
+        let err = module_dir(tmp.path().to_path_buf(), Some("modules"))
+            .unwrap_err()
+            .to_string();
 
-        assert!(err.contains("'modules'") && err.contains("modules found: modules/a"), "{err}");
+        assert!(
+            err.contains("'modules'") && err.contains("modules found: modules/a"),
+            "{err}"
+        );
     }
 }
 
@@ -301,7 +367,9 @@ mod resolve_tests {
     /// Point `WVR_HOME` at `dir` for the life of the returned guard. Holds
     /// `ENV_LOCK` until dropped.
     fn scoped_wvr_home(dir: &std::path::Path) -> impl Drop {
-        struct Guard<'a>(std::sync::MutexGuard<'a, ()>);
+        struct Guard<'a> {
+            _lock: std::sync::MutexGuard<'a, ()>,
+        }
         impl Drop for Guard<'_> {
             fn drop(&mut self) {
                 unsafe { std::env::remove_var(crate::paths::HOME_ENV) };
@@ -309,7 +377,7 @@ mod resolve_tests {
         }
         let guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe { std::env::set_var(crate::paths::HOME_ENV, dir) };
-        Guard(guard)
+        Guard { _lock: guard }
     }
 
     fn make_repo(dir: &std::path::Path) -> String {
@@ -323,7 +391,11 @@ mod resolve_tests {
             vec!["commit", "-m", "init"],
             vec!["tag", "v1"],
         ] {
-            Command::new("git").args(&args).current_dir(dir).output().unwrap();
+            Command::new("git")
+                .args(&args)
+                .current_dir(dir)
+                .output()
+                .unwrap();
         }
         format!("file://{}", dir.display())
     }
@@ -435,6 +507,9 @@ mod resolve_tests {
         // Fresh resolver, as `wvr check` constructs one from the on-disk
         // weaver.lock -- no in-process resolve() call precedes this.
         let fresh = ModuleResolver::new(Some(lock)).unwrap();
-        assert_eq!(fresh.resolve_from_cache("modname", &url, "v1"), Some((path, commit)));
+        assert_eq!(
+            fresh.resolve_from_cache("modname", &url, "v1"),
+            Some((path, commit))
+        );
     }
 }

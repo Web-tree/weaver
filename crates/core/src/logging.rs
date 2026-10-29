@@ -59,7 +59,12 @@ pub fn setup_tracing_with_options(options: &LoggingOptions) -> anyhow::Result<()
         // Human-readable format for interactive use
         tracing_subscriber::registry()
             .with(filter)
-            .with(fmt::layer().with_target(false).compact().with_writer(std::io::stderr))
+            .with(
+                fmt::layer()
+                    .with_target(false)
+                    .compact()
+                    .with_writer(std::io::stderr),
+            )
             .init();
     }
 

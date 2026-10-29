@@ -193,7 +193,11 @@ fn readlink_target(cwd: &str, path: &str) -> Result<Option<String>, String> {
         return Ok(None);
     }
     let target = String::from_utf8_lossy(&stdout).trim().to_string();
-    Ok(if target.is_empty() { None } else { Some(target) })
+    Ok(if target.is_empty() {
+        None
+    } else {
+        Some(target)
+    })
 }
 
 struct DetectedState {
@@ -305,7 +309,12 @@ fn dry_run_message(decision: &Decision, src: &str, dst: &str) -> String {
     }
 }
 
-fn perform(app_path: &str, decision: &Decision, src: &str, dst: &str) -> Result<String, EnsureError> {
+fn perform(
+    app_path: &str,
+    decision: &Decision,
+    src: &str,
+    dst: &str,
+) -> Result<String, EnsureError> {
     match decision {
         Decision::Disabled => Ok(format!("Skipped {src} (disabled by config)")),
         Decision::AlreadyLinked => Ok(format!("{src} already linked to {dst}")),
@@ -366,7 +375,8 @@ impl Guest for Component {
             return Ok(describe(&Decision::Disabled, &cfg.src, &cfg.dst));
         }
 
-        let state = detect(&req.app_path, &cfg.src, &cfg.dst).map_err(EnsureError::ExecutionError)?;
+        let state =
+            detect(&req.app_path, &cfg.src, &cfg.dst).map_err(EnsureError::ExecutionError)?;
         let decision = decide_for(&cfg, &state);
         Ok(describe(&decision, &cfg.src, &cfg.dst))
     }
@@ -380,7 +390,8 @@ impl Guest for Component {
             return Ok(format!("Skipped {} (disabled by config)", cfg.src));
         }
 
-        let state = detect(&req.app_path, &cfg.src, &cfg.dst).map_err(EnsureError::ExecutionError)?;
+        let state =
+            detect(&req.app_path, &cfg.src, &cfg.dst).map_err(EnsureError::ExecutionError)?;
         let decision = decide_for(&cfg, &state);
 
         if req.dry_run {
@@ -401,7 +412,15 @@ mod decision_tests {
     #[test]
     fn symlink_pointing_at_dst_is_already_linked() {
         assert_eq!(
-            decide(true, true, true, Some("/vault/dst"), true, true, "/vault/dst"),
+            decide(
+                true,
+                true,
+                true,
+                Some("/vault/dst"),
+                true,
+                true,
+                "/vault/dst"
+            ),
             Decision::AlreadyLinked
         );
     }
@@ -474,7 +493,15 @@ mod decision_tests {
     #[test]
     fn disabled_short_circuits_everything() {
         assert_eq!(
-            decide(false, true, true, Some("/vault/dst"), true, true, "/vault/dst"),
+            decide(
+                false,
+                true,
+                true,
+                Some("/vault/dst"),
+                true,
+                true,
+                "/vault/dst"
+            ),
             Decision::Disabled
         );
         assert_eq!(
