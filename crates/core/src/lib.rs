@@ -4,6 +4,7 @@ pub mod config;
 pub mod engine;
 pub mod ensure;
 pub mod ensures;
+pub mod input_env;
 pub mod json_merge;
 pub mod lockfile;
 pub mod logging;

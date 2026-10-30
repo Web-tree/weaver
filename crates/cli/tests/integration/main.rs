@@ -6,6 +6,7 @@ pub mod common;
 mod describe;
 mod examples;
 mod includes;
+mod input_env;
 mod k3s_nebula;
 mod list;
 mod module;

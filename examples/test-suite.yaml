@@ -75,3 +75,6 @@ examples:
     stage: pending
   32-module-in-subdirectory:
     stage: implemented
+  33-check-module-inputs:
+    stage: implemented
+    args: ["check"]

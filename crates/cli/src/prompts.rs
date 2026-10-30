@@ -3,7 +3,7 @@ use serde_yml::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
-use weaver_core::config::ModuleManifest;
+use weaver_core::config::{AppConfig, ModuleManifest};
 
 type AnswersMap = HashMap<String, HashMap<String, Value>>;
 
@@ -182,6 +182,19 @@ pub fn resolve_missing_inputs(
     }
 
     Ok(resolved)
+}
+
+/// The app's `WVR_INPUT_*` variables, resolved like `apply` resolves inputs
+/// (app value, then saved answer, then default) but never prompting.
+pub fn app_input_env(
+    app: &AppConfig,
+    manifest: &ModuleManifest,
+) -> anyhow::Result<BTreeMap<String, String>> {
+    let mut provided = load_answers(Path::new(".rw/answers.yaml"))?
+        .remove(&app.name)
+        .unwrap_or_default();
+    provided.extend(app.inputs.clone());
+    weaver_core::input_env::resolve(manifest, &provided)
 }
 
 #[cfg(test)]
