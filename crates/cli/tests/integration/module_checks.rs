@@ -21,7 +21,7 @@ const GIT_ENVS: [(&str, &str); 4] = [
 /// Create a real local git module repo at `root/<name>` containing a
 /// `weaver.module.yaml` with `manifest_yaml`, committed and tagged `v1`.
 /// Returns the repo's local path, usable directly as a module `source:`.
-fn make_module(root: &Path, name: &str, manifest_yaml: &str) -> PathBuf {
+pub(crate) fn make_module(root: &Path, name: &str, manifest_yaml: &str) -> PathBuf {
     let dir = root.join(name);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("weaver.module.yaml"), manifest_yaml).unwrap();

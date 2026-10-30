@@ -216,6 +216,28 @@ deserialize into `CheckDef`, and neither is registered in
 wins, R20 should register them as executable examples so this class of rule stays
 proven.
 
+*Module inputs in check commands (#119):* a check's `command` goes to `sh -c`
+verbatim and is never Tera-rendered, because shell text such as
+`${{ github.workflow }}`, `${#var}` and Go templates is also Tera syntax. A check
+reads the consuming app's inputs from environment variables instead:
+`test -d "$WVR_INPUT_WEB_PATH"`. Example 33 pins this.
+
+- **Name:** `WVR_INPUT_` plus the input name upper-cased, with each character
+  outside `[A-Z0-9_]` replaced by `_` (`web-path` → `WVR_INPUT_WEB_PATH`). A
+  manifest whose inputs map to the same name (`web-path` and `web_path`) fails to
+  load, with an error naming both.
+- **Value:** the app's `inputs:` entry, else the answer `wvr apply` saved in
+  `.rw/answers.yaml`, else the manifest `default`. Strings are exported as-is,
+  booleans as `true`/`false`, numbers in decimal (`3000`, `1.5`), and lists, maps
+  and null as compact JSON (`["dev","prod"]`, `{"port":80}`).
+- **Unset:** an input with no value and no default is not exported, the same way
+  templates have no variable for it. Test for it with `${WVR_INPUT_OWNER+x}`.
+- **Scope:** module checks and app-level checks get their app's inputs; workspace
+  checks get none. `wvr run` exports the same variables to a module task.
+  `WVR_INPUT_*` variables already in weaver's own environment are removed first,
+  so a stale value never stands in for an unset input. Commands that the
+  `ai.patch` plugin runs (`verify_command`, `tool`) do not get them.
+
 ### D. Reporting and CI integration
 
 - **R22 (MUST)** — `wvr check --json` MUST emit a machine-readable report: per rule
