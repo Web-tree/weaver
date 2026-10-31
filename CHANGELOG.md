@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/Web-tree/weaver/compare/v0.3.0...v0.4.0) (2026-10-31)
+
+
+### Features
+
+* **check:** tell an evaluation error from a violation via error_exit ([#130](https://github.com/Web-tree/weaver/issues/130)) ([5d1b4a2](https://github.com/Web-tree/weaver/commit/5d1b4a2e9563a7a685d249031f676c85f67a02ee)), closes [#120](https://github.com/Web-tree/weaver/issues/120)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate wit-bindgen to 0.63.0 ([#95](https://github.com/Web-tree/weaver/issues/95)) ([c973a78](https://github.com/Web-tree/weaver/commit/c973a784fbe2d1c129bd4129b2fc17889311fda0))
+* **module:** reject module symlinks that leave the pinned checkout ([#129](https://github.com/Web-tree/weaver/issues/129)) ([2e0cb92](https://github.com/Web-tree/weaver/commit/2e0cb926e6954b009a965ee2301a3f9ce1367dc0)), closes [#121](https://github.com/Web-tree/weaver/issues/121)
+
 ## [0.3.0](https://github.com/Web-tree/weaver/compare/v0.2.0...v0.3.0) (2026-10-18)
 
 
