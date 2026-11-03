@@ -88,7 +88,7 @@ pub fn build_context(inputs: &HashMap<String, serde_yml::Value>) -> anyhow::Resu
     Ok(ctx)
 }
 
-fn yaml_to_json(value: &serde_yml::Value) -> Result<serde_json::Value, String> {
+pub(crate) fn yaml_to_json(value: &serde_yml::Value) -> Result<serde_json::Value, String> {
     use serde_json::Value as J;
     use serde_yml::Value as Y;
     Ok(match value {

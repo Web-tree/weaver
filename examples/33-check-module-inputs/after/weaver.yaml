@@ -1,0 +1,11 @@
+version: "1"
+modules:
+  - name: "web-standards"
+    source: "../module"
+    ref: "v1"
+apps:
+  - name: "site"
+    module: "web-standards"
+    path: "."
+    inputs:
+      web_path: "apps/site"

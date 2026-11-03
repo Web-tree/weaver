@@ -101,8 +101,11 @@ ensures:                      # list — built-in types OR plugin dispatch (see 
 - **Critical constraint:** `tasks[].command` and manifest-level `ensures[].*`
   config are **NOT** Tera-rendered — they're literal YAML strings
   (`crates/cli/src/commands/run.rs:56-97`; `crates/core/src/ensure/mod.rs:50-143`).
-  So a task command **cannot** interpolate `{{ inputs.database }}`. Plan around
-  this (see §4).
+  So a task command **cannot** interpolate `{{ inputs.database }}`. `wvr run`
+  does export each resolved input as `WVR_INPUT_<NAME>` (#119), so the program a
+  task launches can read `$WVR_INPUT_DATABASE`. The task line itself is not run
+  through a shell, so `$WVR_INPUT_DATABASE` written there is not expanded; put it
+  in a script. Encoding rules: `docs/dev-standards-module-handoff.md` §4.C.
 
 ### 2.4 Running a command
 
@@ -122,10 +125,10 @@ Two options, no third:
 
 `CheckDef { name, command, description }` (`config.rs:227-231`) — run
 `command` via `sh -c`, exit 0 = pass (`crates/cli/src/commands/check.rs:98-116`).
-Declared in the **consumer's** `weaver.yaml` at workspace or per-app level.
-**The module manifest has no `checks:` field** — a module cannot ship its own
-checks today, so the handoff must tell consumers to add them (or generate them
-into `weaver.yaml`; there's no automation for that yet). `wvr check` runs them;
+Declared in the **consumer's** `weaver.yaml` at workspace or per-app level, or
+in the module manifest's `checks:` (run once per consuming app, from the app's
+path). Check commands are not Tera-rendered either; module and app-level checks
+read the app's inputs as `$WVR_INPUT_<NAME>` (#119). `wvr check` runs them;
 **`wvr apply` does not**.
 
 ### 2.6 Sourcing a module

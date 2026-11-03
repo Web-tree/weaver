@@ -80,6 +80,8 @@ pub async fn run(args: RunArgs) -> anyhow::Result<()> {
 
     // Set working directory to app path
     cmd.current_dir(&app_config.path);
+    let input_env = crate::prompts::app_input_env(app_config, &manifest)?;
+    weaver_core::input_env::apply(&mut cmd, &input_env);
 
     // Execute and stream output
     let status = cmd.status()?;

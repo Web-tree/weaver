@@ -3,7 +3,7 @@ use clap::Args;
 use comfy_table::Table;
 use console::style;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use weaver_core::check::{CheckResult, CheckSource, Status, run_check};
 use weaver_core::config::{CheckDef, ModuleConfig, ModuleManifest, Severity, WeaverConfig};
@@ -16,12 +16,13 @@ pub struct CheckArgs {
     pub app: Option<String>,
 }
 
-/// One check to run, with where it came from (R2) and the directory its
-/// `cwd` resolves relative to.
+/// One check to run, with where it came from (R2), the directory its `cwd`
+/// resolves relative to, and the `WVR_INPUT_*` variables it runs with.
 struct Task {
     source: CheckSource,
     check: CheckDef,
     repo_root: PathBuf,
+    input_env: BTreeMap<String, String>,
 }
 
 /// `wvr check --json`'s report (R22). `version` lets a future change to this
@@ -95,6 +96,7 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
                 source: CheckSource::Workspace,
                 check: check.clone(),
                 repo_root: workspace_root.clone(),
+                input_env: BTreeMap::new(),
             });
         }
     }
@@ -112,15 +114,18 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
             continue;
         }
 
-        for check in &app.checks {
-            tasks.push(Task {
-                source: CheckSource::App {
-                    app: app.name.clone(),
-                },
-                check: check.clone(),
-                repo_root: workspace_root.clone(),
-            });
-        }
+        let push_app_checks = |tasks: &mut Vec<Task>, input_env: &BTreeMap<String, String>| {
+            for check in &app.checks {
+                tasks.push(Task {
+                    source: CheckSource::App {
+                        app: app.name.clone(),
+                    },
+                    check: check.clone(),
+                    repo_root: workspace_root.clone(),
+                    input_env: input_env.clone(),
+                });
+            }
+        };
 
         // The app's module must be declared to inherit anything from it.
         let module_config = match config.modules.iter().find(|m| m.name == app.module) {
@@ -137,6 +142,7 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
                     "Warning: app '{}' references module '{}', but weaver.yaml declares no modules at all -- skipping module-inherited checks for this app.",
                     app.name, app.module
                 );
+                push_app_checks(&mut tasks, &BTreeMap::new());
                 continue;
             }
             None => {
@@ -177,6 +183,8 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
         let (resolved_commit, manifest) = resolved_modules
             .get(&module_config.name)
             .expect("just inserted above");
+        let input_env = crate::prompts::app_input_env(app, manifest)?;
+        push_app_checks(&mut tasks, &input_env);
 
         // Module checks run once per consuming app, with `cwd` resolved
         // relative to that app's own path (R1) -- so a module check can
@@ -191,6 +199,7 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
                 },
                 check: check.clone(),
                 repo_root: app_root.clone(),
+                input_env: input_env.clone(),
             });
         }
     }
@@ -217,7 +226,13 @@ pub async fn execute(args: CheckArgs, json: bool) -> anyhow::Result<ExitCode> {
 
     let mut results: Vec<CheckResult> = Vec::with_capacity(tasks.len());
     for task in &tasks {
-        let result = run_check(&task.check, &task.repo_root, task.source.clone()).await;
+        let result = run_check(
+            &task.check,
+            &task.repo_root,
+            task.source.clone(),
+            &task.input_env,
+        )
+        .await;
         results.push(result);
     }
 

@@ -389,6 +389,8 @@ impl ModuleManifest {
         }
         let content = std::fs::read_to_string(path)?;
         let manifest: Self = serde_yml::from_str(&content)?;
+        crate::input_env::ensure_unique_names(manifest.inputs.keys().map(String::as_str))
+            .map_err(|e| e.context(format!("invalid module manifest {}", path.display())))?;
         Ok(manifest)
     }
 }
@@ -490,6 +492,28 @@ checks:
         assert_eq!(manifest.checks.len(), 1);
         assert_eq!(manifest.checks[0].id.as_deref(), Some("no-todo"));
         assert_eq!(manifest.checks[0].command, "! grep -r TODO .");
+    }
+
+    #[test]
+    fn module_manifest_rejects_inputs_with_the_same_env_var_name() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("weaver.module.yaml");
+        fs::write(
+            &path,
+            r#"
+inputs:
+  web-path:
+    type: string
+  web_path:
+    type: string
+"#,
+        )
+        .unwrap();
+
+        let msg = format!("{:#}", ModuleManifest::load(&path).unwrap_err());
+        assert!(msg.contains("'web-path'"), "{msg}");
+        assert!(msg.contains("'web_path'"), "{msg}");
+        assert!(msg.contains("WVR_INPUT_WEB_PATH"), "{msg}");
     }
 
     #[test]

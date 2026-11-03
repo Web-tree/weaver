@@ -1,0 +1,26 @@
+inputs:
+  web_path:
+    type: string
+    default: "apps/web"
+  node_version:
+    type: number
+    default: 22
+  required_scripts:
+    type: "list(string)"
+    default: ["build", "test"]
+checks:
+  - id: web-path-exists
+    name: "Web app directory exists"
+    command: 'test -d "$WVR_INPUT_WEB_PATH"'
+  - id: node-pinned
+    name: ".nvmrc pins the module's Node major"
+    command: 'grep -qx "$WVR_INPUT_NODE_VERSION" "$WVR_INPUT_WEB_PATH/.nvmrc"'
+  - id: required-scripts
+    name: "package.json defines every required script"
+    command: |
+      for s in $(printf '%s' "$WVR_INPUT_REQUIRED_SCRIPTS" | tr -d '[]"' | tr ',' ' '); do
+        grep -q "\"$s\":" "$WVR_INPUT_WEB_PATH/package.json" || { echo "missing script: $s"; exit 1; }
+      done
+  - id: caller-concurrency
+    name: "CI cancels superseded runs per workflow and ref"
+    command: "grep -qF 'group: ${{ github.workflow }}-${{ github.ref }}' .github/workflows/ci.yml"

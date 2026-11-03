@@ -18,6 +18,7 @@
 
 use crate::config::{CheckDef, Severity};
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Duration;
 
@@ -163,10 +164,18 @@ fn expected_description(check: &CheckDef) -> String {
 /// a specific app -- and is carried onto the returned [`CheckResult`]
 /// unchanged.
 ///
+/// `input_env` (the app's `WVR_INPUT_*`) replaces any inherited `WVR_INPUT_*`;
+/// the command itself reaches the shell verbatim, never templated.
+///
 /// Never panics and never returns `Err` -- an unevaluatable check is
 /// reported as [`Status::Error`] in the returned [`CheckResult`], not as a
 /// `Result::Err`, so callers always get a reportable result per check.
-pub async fn run_check(check: &CheckDef, repo_root: &Path, source: CheckSource) -> CheckResult {
+pub async fn run_check(
+    check: &CheckDef,
+    repo_root: &Path,
+    source: CheckSource,
+    input_env: &BTreeMap<String, String>,
+) -> CheckResult {
     // Validate the regex before spawning anything: we should never run a
     // command we can't actually judge.
     let matcher = match &check.stdout_matches {
@@ -191,6 +200,7 @@ pub async fn run_check(check: &CheckDef, repo_root: &Path, source: CheckSource) 
 
     let mut command = tokio::process::Command::new("sh");
     command.arg("-c").arg(&check.command).current_dir(&cwd);
+    crate::input_env::apply(command.as_std_mut(), input_env);
 
     let run = command.output();
     let output = match check.timeout {
@@ -312,14 +322,26 @@ mod tests {
     #[tokio::test]
     async fn default_expect_zero_passes_on_success() {
         let check = base_check("exit 0");
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass);
     }
 
     #[tokio::test]
     async fn default_expect_zero_fails_on_nonzero_exit() {
         let check = base_check("exit 1");
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Fail);
     }
 
@@ -328,7 +350,13 @@ mod tests {
     #[tokio::test]
     async fn exit_127_is_an_evaluation_error_not_a_violation() {
         let check = base_check("exit 127");
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Error, "{}", result.observed);
         assert!(
             result.observed.contains("could not evaluate"),
@@ -340,7 +368,13 @@ mod tests {
     #[tokio::test]
     async fn a_missing_tool_is_an_evaluation_error_naming_it() {
         let check = base_check("wvr-no-such-tool --version");
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Error, "{}", result.observed);
         assert!(
             result.observed.contains("wvr-no-such-tool"),
@@ -352,7 +386,13 @@ mod tests {
     #[tokio::test]
     async fn a_non_executable_command_is_an_evaluation_error() {
         let check = base_check("exit 126");
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Error);
     }
 
@@ -360,11 +400,23 @@ mod tests {
     async fn custom_error_exit_codes_replace_the_defaults() {
         let mut check = base_check("exit 2");
         check.error_exit = vec![2, 5];
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Error);
 
         check.command = "exit 127".to_string();
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Fail);
     }
 
@@ -373,7 +425,13 @@ mod tests {
         let mut check = base_check("exit 2");
         check.expect = 2;
         check.error_exit = vec![2];
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass);
     }
 
@@ -381,7 +439,13 @@ mod tests {
     async fn non_zero_expect_satisfied_passes() {
         let mut check = base_check("exit 3");
         check.expect = 3;
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass);
     }
 
@@ -389,7 +453,13 @@ mod tests {
     async fn non_zero_expect_not_satisfied_fails() {
         let mut check = base_check("exit 2");
         check.expect = 3;
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Fail);
     }
 
@@ -397,7 +467,13 @@ mod tests {
     async fn stdout_contains_hit_passes() {
         let mut check = base_check("echo hello-world");
         check.stdout_contains = Some("hello".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass);
     }
 
@@ -405,7 +481,13 @@ mod tests {
     async fn stdout_contains_miss_fails() {
         let mut check = base_check("echo hello-world");
         check.stdout_contains = Some("goodbye".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Fail);
     }
 
@@ -413,7 +495,13 @@ mod tests {
     async fn stdout_matches_hit_passes() {
         let mut check = base_check("echo hello-123");
         check.stdout_matches = Some(r"^hello-\d+".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass);
     }
 
@@ -421,7 +509,13 @@ mod tests {
     async fn stdout_matches_miss_fails() {
         let mut check = base_check("echo hello-123");
         check.stdout_matches = Some(r"^goodbye-\d+".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Fail);
     }
 
@@ -432,7 +526,13 @@ mod tests {
         // of the reported defect.
         let mut check = base_check("echo v1.2.3");
         check.stdout_matches = Some(r"^v[0-9]+\.[0-9]+\.[0-9]+$".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass, "observed: {}", result.observed);
     }
 
@@ -440,7 +540,13 @@ mod tests {
     async fn failing_stdout_match_reports_the_exact_compared_value() {
         let mut check = base_check("echo v1.2.3");
         check.stdout_matches = Some(r"^v9\.9\.9$".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Fail);
         // The diagnostic must show precisely what was compared against the
         // pattern -- never a value the comparison itself disagrees with.
@@ -463,7 +569,13 @@ mod tests {
         // general whitespace strip.
         let mut check = base_check("printf 'line1\\nline2\\n'");
         check.stdout_matches = Some(r"(?m)^line2$".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass, "observed: {}", result.observed);
     }
 
@@ -471,7 +583,13 @@ mod tests {
     async fn stdout_contains_preserves_interior_newlines() {
         let mut check = base_check("printf 'line1\\nline2\\n'");
         check.stdout_contains = Some("line1\nline2".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Pass, "observed: {}", result.observed);
     }
 
@@ -479,7 +597,13 @@ mod tests {
     async fn stdout_matches_invalid_regex_errors_not_passes() {
         let mut check = base_check("echo hello");
         check.stdout_matches = Some("(unclosed".to_string());
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Error);
     }
 
@@ -487,7 +611,13 @@ mod tests {
     async fn timeout_expiring_errors_not_fails() {
         let mut check = base_check("sleep 5");
         check.timeout = Some(1);
-        let result = run_check(&check, Path::new("."), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("."),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Error);
         assert!(
             result.observed.contains("timed out"),
@@ -504,7 +634,7 @@ mod tests {
 
         let mut check = base_check("test -f marker.txt");
         check.cwd = None;
-        let result = run_check(&check, dir.path(), CheckSource::Workspace).await;
+        let result = run_check(&check, dir.path(), CheckSource::Workspace, &BTreeMap::new()).await;
         assert_eq!(
             result.status,
             Status::Pass,
@@ -513,7 +643,13 @@ mod tests {
 
         let mut check_in_sub = base_check("test -f marker.txt");
         check_in_sub.cwd = Some("sub".to_string());
-        let result = run_check(&check_in_sub, dir.path(), CheckSource::Workspace).await;
+        let result = run_check(
+            &check_in_sub,
+            dir.path(),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(
             result.status,
             Status::Fail,
@@ -527,8 +663,22 @@ mod tests {
         // with that working directory.
         let mut check = base_check("echo hi");
         check.cwd = Some("this/path/does/not/exist".to_string());
-        let result = run_check(&check, Path::new("/tmp"), CheckSource::Workspace).await;
+        let result = run_check(
+            &check,
+            Path::new("/tmp"),
+            CheckSource::Workspace,
+            &BTreeMap::new(),
+        )
+        .await;
         assert_eq!(result.status, Status::Error);
+    }
+
+    #[tokio::test]
+    async fn input_env_is_exported_to_the_command() {
+        let check = base_check(r#"[ "$WVR_INPUT_WEB_PATH" = "apps/web" ]"#);
+        let env = BTreeMap::from([("WVR_INPUT_WEB_PATH".to_string(), "apps/web".to_string())]);
+        let result = run_check(&check, Path::new("."), CheckSource::Workspace, &env).await;
+        assert_eq!(result.status, Status::Pass, "{}", result.observed);
     }
 
     // -- CheckSource provenance (R2, R3) --------------------------------
@@ -611,7 +761,7 @@ mod tests {
             resolved_commit: "a".repeat(40),
             app: "billing".to_string(),
         };
-        let result = run_check(&check, Path::new("."), source.clone()).await;
+        let result = run_check(&check, Path::new("."), source.clone(), &BTreeMap::new()).await;
         assert_eq!(result.id, "no-todo");
         assert_eq!(result.qualified_id, "dev-standards:no-todo");
         assert_eq!(result.source, source);
